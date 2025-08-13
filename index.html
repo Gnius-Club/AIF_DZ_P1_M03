@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agente de Seguridad Tech: Misión Prevención</title>
+  <meta name="description" content="Videojuego educativo offline sobre uso responsable de dispositivos y seguridad de baterías para primaria (7–9 años)." />
+  <style>
+    /* =========================================================
+       ESTILOS GENERALES (Accesibilidad y Layout Base)
+       - Texto >=18px, alto contraste, foco visible
+       ========================================================= */
+    :root{
+      --bg:#0f172a;           /* slate-900 */
+      --panel:#111827;        /* gray-900 */
+      --panel-2:#1f2937;      /* gray-800 */
+      --accent:#22d3ee;       /* cyan-400 */
+      --accent-2:#06b6d4;     /* cyan-500 */
+      --ok:#22c55e;           /* green-500 */
+      --bad:#ef4444;          /* red-500 */
+      --warn:#f59e0b;         /* amber-500 */
+      --text:#f8fafc;         /* slate-50 */
+      --muted:#cbd5e1;        /* slate-300 */
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(circle at 20% 0%, #0b1027, var(--bg));
+      color: var(--text);
+      font-size:18px;
+      line-height:1.35;
+      overflow:hidden;
+      user-select:none;
+    }
+    *:focus{ outline: 3px solid var(--accent); outline-offset: 2px; }
+    button{ font-size:18px; }
+
+    /* Top HUD */
+    header#hud{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 16px; background: linear-gradient(180deg,#0b122b,#0b122bdd);
+      border-bottom:2px solid #0ea5b7; box-shadow: var(--shadow);
+    }
+    #brand{ display:flex; gap:12px; align-items:center; }
+    #brand .avatar{ width:44px; height:44px; border-radius:50%; background: conic-gradient(from 0deg, #e11d48, #f59e0b, #22d3ee, #22c55e, #e11d48); display:grid; place-items:center; font-size:26px; }
+    #brand .meta{ display:flex; flex-direction:column; }
+    #brand .meta b{ font-size:20px; }
+    #hud .stats{ display:flex; gap:18px; align-items:center; }
+    .chip{ background: var(--panel-2); padding:6px 10px; border-radius:12px; border:1px solid #334155; box-shadow: inset 0 0 0 1px #0ea5b7aa; }
+    #lives span{ font-size:22px; letter-spacing:4px; }
+    #progress{ min-width:220px; }
+    #progress meter{ width:180px; height:16px; }
+    #timer{ min-width:160px; text-align:center; }
+
+    /* Contenedor principal */
+    #game{
+      display:grid; grid-template-rows: auto 1fr auto; height: calc(100% - 0px);
+    }
+
+    /* Escena */
+    #sceneWrap{ position:relative; background: #0b1027; border-top:1px solid #0ea5b7; border-bottom:1px solid #0ea5b7; overflow:hidden; }
+    #scene{
+      position:absolute; inset:0; margin:auto; width: 1100px; height: 620px; background: #111a35; border:2px solid #334155; border-radius:14px; box-shadow: var(--shadow);
+    }
+    /* Capas simples para decorar las habitaciones sin imágenes */
+    .room-base{ position:absolute; inset:0; }
+    .room-floor{ position:absolute; left:0; right:0; bottom:0; height:35%; background: linear-gradient(180deg, #0f172a, #0b122b); }
+    .room-wall{ position:absolute; left:0; right:0; top:0; bottom:35%; background: linear-gradient(180deg, #1f2a52, #152552); }
+
+    /* Objetos simples */
+    .obj{ position:absolute; border-radius:10px; opacity:.95; }
+    /* Cama */
+    .bed{ width:340px; height:160px; background:#374151; left:60px; top:320px; }
+    .pillow{ width:180px; height:80px; background:#9ca3af; left:80px; top:330px; border-radius:20px; }
+    /* Mesa */
+    .table{ width:220px; height:24px; background:#6b7280; left:720px; top:280px; border-radius:8px; }
+    .laptop{ width:60px; height:40px; background:#0ea5b7; left:785px; top:240px; border-radius:6px; }
+    .glass{ width:26px; height:34px; background:#f59e0b; left:744px; top:246px; border-radius:6px; }
+    .floor-phone{ width:48px; height:28px; background:#22d3ee; left:520px; top:520px; border-radius:6px; }
+
+    /* Cocina */
+    .counter{ width:700px; height:50px; background:#6b7280; left:180px; top:310px; }
+    .sink{ width:180px; height:80px; background:#94a3b8; left:240px; top:290px; border-radius:10px; }
+    .regleta{ width:120px; height:24px; background:#94a3b8; left:780px; top:470px; border-radius:8px; }
+
+    /* Aula */
+    .cart{ width:220px; height:140px; background:#334155; left:90px; top:320px; }
+    .jacket{ width:220px; height:40px; background:#9ca3af; left:90px; top:300px; border-radius:10px; }
+    .desk{ width:200px; height:100px; background:#475569; left:740px; top:330px; border-radius:8px; }
+    .edge-tablet{ width:54px; height:34px; background:#22d3ee; left:880px; top:328px; border-radius:6px; }
+
+    /* Áreas clicables de riesgo */
+    .risk{ position:absolute; border:2px dashed transparent; border-radius:10px; cursor:pointer; }
+    .risk:hover, .risk:focus{ border-color: var(--warn); box-shadow: 0 0 0 3px #f59e0bb3; }
+    .risk.marked{ outline:3px solid #ef4444; box-shadow: 0 0 20px #ef4444aa; }
+    .risk .pulse{ position:absolute; inset:-8px; border:3px solid #ef4444; border-radius:12px; animation:pulse 1.2s infinite; pointer-events:none; display:none; }
+    .risk.marked .pulse{ display:block; }
+    @keyframes pulse{ 0%{opacity:.8; transform:scale(.95);} 70%{opacity:.2; transform:scale(1.05);} 100%{opacity:.8; transform:scale(.95);} }
+
+    /* Tooltip educativo simple */
+    .risk[data-tip]:hover::after, .risk:focus::after{ content: attr(data-tip); position:absolute; left:0; top:100%; transform: translateY(8px); background:#111827; color:#e2e8f0; padding:6px 8px; border-radius:8px; border:1px solid #334155; white-space:nowrap; z-index:20; }
+
+    /* Kit de Agente (oculto hasta completar detección) */
+    #kitWrap{ position:relative; background: linear-gradient(180deg,#0b122b,#060b1f); border-top: 2px solid #0ea5b7; }
+    #kit{ display:flex; gap:12px; align-items:center; justify-content:center; padding:12px; height:110px; transform: translateY(120%); transition: transform .5s ease; }
+    #kit.visible{ transform: translateY(0); }
+    .tool{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 10px; background: #0b1533; border:1px solid #0ea5b744; border-radius:12px; box-shadow: var(--shadow); min-width:110px; cursor:grab; }
+    .tool[aria-disabled="true"]{ opacity:.35; filter:grayscale(1); pointer-events:none; }
+    .tool:focus{ outline:3px solid var(--accent-2); }
+    .tool .icon{ font-size:28px; }
+    .tool .name{ font-size:16px; color:#e2e8f0; }
+
+    /* Panel central de introducción */
+    #centerPanel{ position:absolute; inset:0; display:grid; place-items:center; background: radial-gradient(circle at 50% 40%, #0b122b 0%, #0b122b 20%, #0006 100%); z-index:50; }
+    #briefing{ width: min(700px, 92vw); background: #0b1533; border:2px solid #0ea5b7; border-radius:18px; padding:18px; box-shadow: var(--shadow); text-align:center; }
+    #briefing h2{ margin:6px 0 0; font-size:28px; }
+    #briefing p{ color:#e2e8f0; }
+    #briefing .protocol{ text-align:left; background:#0d1a3d; border:1px solid #1f3a5b; padding:10px; border-radius:12px; margin:10px 0; }
+    #briefing .actions{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .btn{ background: linear-gradient(180deg,#22d3ee,#06b6d4); border:none; color:#04121f; font-weight:800; padding:10px 14px; border-radius:12px; cursor:pointer; box-shadow: var(--shadow); }
+    .btn.secondary{ background: #0b1533; color:#e2e8f0; border:1px solid #0ea5b7; }
+
+    /* Indicadores y mensajes flotantes */
+    #toast{ position: absolute; left: 16px; bottom: 130px; background:#0b1533; border:1px solid #0ea5b7; padding:10px 12px; border-radius:12px; box-shadow: var(--shadow); opacity:0; transform: translateY(10px); transition: all .25s; pointer-events:none; z-index:60; }
+    #toast.show{ opacity:1; transform: translateY(0); }
+
+    /* Contenedor de métricas de fin */
+    #final{ position:absolute; inset:0; display:none; place-items:center; background: linear-gradient(180deg, #06122b88, #000c); z-index:70; }
+    #final .card{ width:min(760px,94vw); background:#0b1533; border:2px solid #0ea5b7; border-radius:18px; padding:18px; box-shadow: var(--shadow); }
+    #final h2{ margin-top:0; }
+
+    /* Panel de Colección (glosario) */
+    #collection{ position:absolute; right:16px; top:72px; background:#0b1533; border:1px solid #0ea5b7; border-radius:12px; padding:8px; max-width:340px; box-shadow: var(--shadow); }
+    #collection h3{ margin:4px 0 8px; font-size:18px; }
+    .badge{ display:inline-block; padding:2px 8px; margin:2px; border-radius:999px; border:1px solid #334155; background:#0f1a3a; font-size:14px; }
+
+    /* Zoom/Pan (nivel 3) */
+    #zoomUI{ position:absolute; right:16px; bottom:150px; display:none; flex-direction:column; gap:8px; z-index:40; }
+    #zoomUI button{ width:44px; height:44px; border-radius:10px; border:1px solid #0ea5b7; background:#0b1533; color:#e2e8f0; }
+
+    /* Ayudas de drag */
+    .risk.drop-ready{ box-shadow: 0 0 0 4px #22d3ee99, 0 0 20px #22d3ee66; }
+    .risk.resolved{ outline:3px solid var(--ok); border-color:transparent; }
+
+    /* Panel inferior secundario (controles de accesibilidad) */
+    #auxBar{ display:flex; gap:10px; align-items:center; padding:8px 12px; background:#0b122b; border-top:1px solid #0ea5b7; }
+    #auxBar label{ display:flex; align-items:center; gap:8px; }
+
+    /* Responsive (escala el scene) */
+    @media (max-width:1200px){
+      #scene{ transform: scale(.85); transform-origin: top center; }
+    }
+    @media (max-width:980px){
+      #scene{ transform: scale(.7); }
+    }
+    @media (max-width:760px){
+      #scene{ transform: scale(.58); }
+    }
+  </style>
+</head>
+<body>
+  <div id="game" role="application" aria-label="Agente de Seguridad Tech: Misión Prevención">
+    <header id="hud" aria-live="polite">
+      <div id="brand">
+        <div class="avatar" aria-hidden="true">🛡️</div>
+        <div class="meta">
+          <b>Agente de Seguridad Tech</b>
+          <span>Misión: Prevención</span>
+        </div>
+      </div>
+      <div class="stats">
+        <div id="level" class="chip" aria-label="Nivel actual">Nivel 1/3 — El Cuarto</div>
+        <div id="progress" class="chip" aria-label="Progreso de detección">Detección: <meter id="meter" min="0" max="3" value="0" aria-label="Riesgos detectados"></meter> <span id="detCount">0/3</span></div>
+        <div id="lives" class="chip" aria-label="Errores restantes">Errores: <span id="hearts">♥ ♥ ♥</span></div>
+        <div id="timer" class="chip" aria-label="Tiempo">⏱ 00:00</div>
+      </div>
+      <div class="stats">
+        <button class="btn secondary" id="toggleVoice" aria-pressed="true" aria-label="Alternar voz">🔈 Voz: ON</button>
+        <button class="btn secondary" id="openCollection" aria-label="Ver glosario de pruebas">📚 Pruebas</button>
+      </div>
+    </header>
+
+    <div id="sceneWrap">
+      <div id="scene" tabindex="0" aria-label="Escena jugable">
+        <!-- Capas decorativas base (se sustituyen según nivel) -->
+        <div class="room-base room-wall"></div>
+        <div class="room-base room-floor"></div>
+        <!-- Objetos/Decor por nivel se añaden dinámicamente -->
+      </div>
+
+      <!-- Panel central de Briefing -->
+      <div id="centerPanel" role="dialog" aria-modal="true">
+        <div id="briefing">
+          <h2>👩‍✈️ Comandante</h2>
+          <p><strong>Briefing de Misión</strong></p>
+          <p>“¡Atención, Agente! Hoy analizarás escenas de riesgo. Encuentra los peligros y aplica el protocolo correcto.”</p>
+          <div class="protocol">
+            <p><b>Protocolo de Sobrecarga:</b> “Si un dispositivo está cubierto o sin ventilación, se sobrecalienta. Solución: ¡Dale espacio para respirar!”</p>
+            <p><b>Protocolo de Daño Físico:</b> “Golpes, agua y cables dañados son enemigos. Solución: alejar líquidos, proteger/retirar del piso, desconectar cable dañado.”</p>
+            <p><b>Protocolo Rojo (Nivel 5):</b> “Si ves hinchado, humo, olor raro o muy caliente, NO te acerques. Activa la Alerta de Nivel 5 y avisa a un adulto.”</p>
+          </div>
+          <div class="actions">
+            <button id="startBtn" class="btn" aria-label="Iniciar misión">INICIAR MISIÓN</button>
+            <button id="muteAtStart" class="btn secondary" aria-label="Silenciar voz">Silenciar voz</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="toast" role="status" aria-live="polite">Mensaje</div>
+
+      <div id="final">
+        <div class="card" role="dialog" aria-modal="true">
+          <h2 id="finalTitle">Resultados</h2>
+          <div id="finalBody"></div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <button class="btn" id="retryLevel">Reintentar nivel</button>
+            <button class="btn secondary" id="nextLevel">Siguiente nivel</button>
+            <button class="btn secondary" id="startRush" title="Modo contrarreloj">🏁 Contrarreloj</button>
+            <button class="btn secondary" id="resetRun">Reiniciar campaña</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="collection" hidden>
+        <h3>📚 Colección de “Pruebas”</h3>
+        <div id="collectionList">Encuentra y resuelve riesgos para llenar tu glosario.</div>
+      </div>
+
+      <div id="zoomUI" aria-label="Controles de zoom">
+        <button id="zoomIn" aria-label="Acercar">＋</button>
+        <button id="zoomOut" aria-label="Alejar">－</button>
+        <button id="zoomReset" aria-label="Resetear vista">⟲</button>
+      </div>
+    </div>
+
+    <div id="kitWrap" aria-label="Kit de Agente">
+      <div id="kit"></div>
+    </div>
+
+    <div id="auxBar" aria-label="Barra de accesibilidad y ayuda">
+      <label><input id="a11yHighlights" type="checkbox" /> Resaltar riesgos (ayuda visual)</label>
+      <label><input id="a11yBigTargets" type="checkbox" /> Aumentar áreas clicables</label>
+      <span style="opacity:.8">Atajos: Tab navega, Enter marca, 1–9 selecciona herramienta</span>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================
+       ESTADO GLOBAL Y UTILIDADES
+       ========================================================= */
+    const state = {
+      levelIndex: 0,                 // 0..2
+      errorsLeft: 3,
+      detected: new Set(),           // id de riesgos detectados
+      resolved: new Set(),           // id de riesgos resueltos
+      attempts: 0,                   // intentos en fase solución
+      corrects: 0,                   // aciertos en fase solución
+      rushMode: false,               // contrarreloj
+      startedAt: null,               // Date
+      timerInterval: null,
+      voiceOn: true,
+      collection: JSON.parse(localStorage.getItem('agente_collection')||'{}'), // glosario
+      records: JSON.parse(localStorage.getItem('agente_records')||'{}'),       // mejores tiempos
+    };
+
+    // Configuración
+    const MAX_ERRORS = 3; // por nivel
+
+    // Utilidad: TTS
+    function speak(txt){
+      if(!state.voiceOn) return;
+      try{
+        const u = new SpeechSynthesisUtterance(txt);
+        u.lang = 'es-MX';
+        u.rate = 1.0;
+        u.pitch = 1.05;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(u);
+      }catch(e){ /* silencio */ }
+    }
+
+    // Utilidad: pequeños sonidos con WebAudio (offline)
+    const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    function beep(freq=880, dur=0.12, type='sine', vol=0.08){
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type=type; o.frequency.value=freq; g.gain.value=vol;
+      o.connect(g).connect(audioCtx.destination);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      o.stop(audioCtx.currentTime + dur);
+    }
+    function successFX(){ beep(740,0.08,'triangle',0.08); setTimeout(()=>beep(990,0.12,'triangle',0.08),90); }
+    function errorFX(){ beep(120,0.12,'sawtooth',0.09); setTimeout(()=>beep(90,0.16,'sawtooth',0.09),100); }
+    function sirenFX(){
+      let t=0; const id=setInterval(()=>{ beep(660+(Math.sin(t)*220),0.08,'square',0.07); t+=.7; },120);
+      setTimeout(()=>clearInterval(id), 900);
+    }
+
+    // UI helpers
+    const $ = s => document.querySelector(s);
+    function toast(msg){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'), 1500); }
+
+    /* =========================================================
+       DATASET DE ESCENAS, RIESGOS Y SOLUCIONES
+       Formato sugerido por el usuario
+       ========================================================= */
+    const escenas = [
+      {
+        nombre: 'El Cuarto',
+        decor: function(){
+          const sc=$('#scene'); sc.innerHTML='<div class="room-base room-wall"></div><div class="room-base room-floor"></div>'+
+            '<div class="obj bed"></div><div class="obj pillow"></div>'+
+            '<div class="obj table"></div><div class="obj laptop"></div><div class="obj glass"></div>'+
+            '<div class="obj floor-phone"></div>';
+        },
+        riesgos:[
+          {id:'r1', x:120,y:338,w:150,h:54, tipo:['sobrecarga'], descripcion:'Tablet cargando bajo la almohada (sin ventilación).', solucion_id:'ventilar'},
+          {id:'r2', x:738,y:240,w:34,h:40, tipo:['liquidos'], descripcion:'Vaso de jugo al borde junto a la laptop.', solucion_id:'alejar_liquido'},
+          {id:'r3', x:520,y:520,w:48,h:28, tipo:['golpe'], descripcion:'Celular en el suelo en zona de paso.', solucion_id:'fundaproteger'},
+        ],
+        soluciones:[
+          {id:'ventilar', icono:'🌬️', nombre:'Ventilar', protocolo:'sobrecarga', texto_feedback:'¡Dale espacio para respirar! “¡Un dispositivo que respira, es uno que no conspira!”'},
+          {id:'alejar_liquido', icono:'💧✋', nombre:'Alejar líquido', protocolo:'liquidos', texto_feedback:'Alejado el vaso, ¡lejos del peligro, me siento más seguro!'},
+          {id:'fundaproteger', icono:'🛡️', nombre:'Recoger/Proteger', protocolo:'golpe', texto_feedback:'Dispositivo fuera del suelo y protegido.'},
+        ]
+      },
+      {
+        nombre: 'La Cocina',
+        decor: function(){
+          const sc=$('#scene'); sc.innerHTML='<div class="room-base room-wall"></div><div class="room-base room-floor"></div>'+
+            '<div class="obj counter"></div><div class="obj sink"></div>';
+        },
+        riesgos:[
+          {id:'r4', x:500,y:420,w:140,h:40, tipo:['cable_danado'], descripcion:'Cable pelado/dañado cargando un celular.', solucion_id:'desconectar'},
+          {id:'r5', x:260,y:296,w:160,h:70, tipo:['liquidos'], descripcion:'Tablet junto al fregadero (salpicaduras).', solucion_id:'antiagua'},
+          {id:'r6', x:620,y:300,w:140,h:80, tipo:['sobrecarga','uso_en_carga'], descripcion:'Uso durante la carga con calentamiento visible.', solucion_id:'pausa_ventila'},
+        ],
+        soluciones:[
+          {id:'desconectar', icono:'🔌', nombre:'Desconectar cable', protocolo:'cable_danado', texto_feedback:'Cable dañado fuera de servicio.'},
+          {id:'antiagua', icono:'💧🛡️', nombre:'Alejar de agua', protocolo:'liquidos', texto_feedback:'Alejado de salpicaduras. “¡Lejos del peligro, me siento más seguro!”'},
+          {id:'pausa_ventila', icono:'⏸️', nombre:'Pausa & Ventila', protocolo:'sobrecarga', texto_feedback:'Detén uso y ventila el equipo.'},
+        ]
+      },
+      {
+        nombre: 'Salón de Clases',
+        decor: function(){
+          const sc=$('#scene'); sc.innerHTML='<div class="room-base room-wall"></div><div class="room-base room-floor"></div>'+
+            '<div class="obj cart"></div><div class="obj jacket"></div>'+
+            '<div class="obj desk"></div><div class="obj edge-tablet"></div>'+
+            '<div class="obj regleta"></div>';
+        },
+        riesgos:[
+          {id:'r7', x:92,y:302,w:218,h:40, tipo:['sobrecarga'], descripcion:'Carrito de tablets cubierto (sin ventilación).', solucion_id:'quitar_cubierta'},
+          {id:'r8', x:880,y:328,w:54,h:34, tipo:['golpe'], descripcion:'Tablet al borde del pupitre.', solucion_id:'reacomodar'},
+          {id:'r9', x:780,y:470,w:120,h:24, tipo:['sobrecarga_electrica'], descripcion:'Enchufe múltiple con sobrecarga de cables.', solucion_id:'desconectar_regleta'},
+          {id:'r10', x:150,y:360,w:120,h:40, tipo:['emergencia_roja'], descripcion:'EMERGENCIA: Tablet hinchada con humo de colores.', solucion_id:'alerta_nivel5', critico:true},
+        ],
+        soluciones:[
+          {id:'quitar_cubierta', icono:'🧥✋', nombre:'Retirar cubierta', protocolo:'sobrecarga', texto_feedback:'¡Espacio para respirar! “¡Un dispositivo que respira, es uno que no conspira!”'},
+          {id:'reacomodar', icono:'🤚', nombre:'Reacomodar', protocolo:'golpe', texto_feedback:'Tablet alejada del borde.'},
+          {id:'desconectar_regleta', icono:'🧰', nombre:'Desconectar regleta', protocolo:'sobrecarga_electrica', texto_feedback:'Carga eléctrica bajo control.'},
+          {id:'alerta_nivel5', icono:'🚨', nombre:'Alerta Nivel 5', protocolo:'emergencia_roja', texto_feedback:'¡Protocolo Rojo activado! ¡Has protegido a todos!'},
+        ]
+      }
+    ];
+
+    /* =========================================================
+       RENDER DE ESCENA Y RIESGOS (FASE DETECCIÓN)
+       ========================================================= */
+    function renderHUD(){
+      const lvl = escenas[state.levelIndex];
+      $('#level').textContent = `Nivel ${state.levelIndex+1}/3 — ${lvl.nombre}`;
+      const total = lvl.riesgos.length;
+      $('#meter').max = total; $('#meter').value = state.detected.size; $('#detCount').textContent = `${state.detected.size}/${total}`;
+      $('#hearts').textContent = Array(state.errorsLeft).fill('♥').join(' ');
+    }
+
+    function clearScene(){ $('#scene').innerHTML=''; }
+
+    function renderScene(){
+      const lvl = escenas[state.levelIndex];
+      clearScene();
+      lvl.decor();
+
+      // Añadir áreas de riesgo
+      lvl.riesgos.forEach(r=>{
+        const el = document.createElement('button');
+        el.className = 'risk';
+        el.style.left = r.x+'px'; el.style.top = r.y+'px'; el.style.width=r.w+'px'; el.style.height=r.h+'px';
+        el.setAttribute('tabindex','0');
+        el.setAttribute('aria-label', r.descripcion);
+        el.dataset.id = r.id;
+        el.dataset.tip = r.descripcion;
+        el.dataset.types = JSON.stringify(r.tipo);
+        el.dataset.crit = r.critico? '1':'0';
+        el.setAttribute('data-tip', r.descripcion);
+        el.addEventListener('click', onRiskClick);
+        el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); onRiskClick.call(el, e);} });
+        const pulse = document.createElement('div'); pulse.className='pulse'; el.appendChild(pulse);
+        $('#scene').appendChild(el);
+      });
+
+      // Nivel 3: activar zoom/pan
+      $('#zoomUI').style.display = (state.levelIndex===2)?'flex':'none';
+      if(state.levelIndex===2) enableZoomPan(); else resetZoomPan();
+
+      renderHUD();
+    }
+
+    function onRiskClick(){
+      const id = this.dataset.id;
+      if(state.detected.has(id)) return; // ya marcado
+      state.detected.add(id);
+      this.classList.add('marked');
+      speak('¡Peligro detectado, Agente!');
+      beep(880,0.08,'triangle');
+      renderHUD();
+      checkDetectionPhase();
+    }
+
+    function checkDetectionPhase(){
+      const lvl = escenas[state.levelIndex];
+      if(state.detected.size === lvl.riesgos.length){
+        // Desbloquear kit
+        showKit();
+        toast('¡Todos los peligros detectados! Usa el Kit de Agente.');
+      }
+    }
+
+    /* =========================================================
+       KIT DE AGENTE (FASE SOLUCIÓN) y DRAG & DROP
+       ========================================================= */
+    let currentTool = null;
+
+    function buildKit(){
+      const lvl = escenas[state.levelIndex];
+      const kit = $('#kit');
+      kit.innerHTML='';
+      lvl.soluciones.forEach((s,i)=>{
+        const t = document.createElement('div');
+        t.className='tool'; t.setAttribute('role','button'); t.setAttribute('tabindex','0');
+        t.draggable = true; t.dataset.id = s.id; t.dataset.proto = s.protocolo; t.title = s.nombre;
+        t.innerHTML = `<div class="icon">${s.icono}</div><div class="name">${i+1}. ${s.nombre}</div>`;
+        t.addEventListener('dragstart', e=>{ currentTool = s; t.classList.add('dragging'); });
+        t.addEventListener('dragend', e=>{ currentTool = null; t.classList.remove('dragging'); });
+        t.addEventListener('click', ()=>{ currentTool = s; toast('Herramienta: '+s.nombre); speak('Herramienta '+s.nombre); highlightTargetsFor(s.protocolo); });
+        t.addEventListener('keydown', e=>{ if(e.key==='Enter'){ currentTool = s; toast('Herramienta: '+s.nombre); highlightTargetsFor(s.protocolo);} });
+        kit.appendChild(t);
+      });
+
+      // Activar destinos
+      $$('#scene .risk').forEach(el=>{
+        el.addEventListener('dragover', e=>{ if(currentTool){ e.preventDefault(); el.classList.add('drop-ready'); } });
+        el.addEventListener('dragleave', ()=> el.classList.remove('drop-ready'));
+        el.addEventListener('drop', ()=>{ el.classList.remove('drop-ready'); if(currentTool) trySolve(el, currentTool); });
+      });
+
+      // Atajos 1..9 para herramientas
+      document.onkeydown = (e)=>{
+        if(e.key>='1' && e.key<='9'){
+          const idx = parseInt(e.key)-1;
+          const toolEl = $('#kit .tool:nth-child('+(idx+1)+')');
+          if(toolEl){ toolEl.click(); }
+        }
+      }
+    }
+
+    function $$(sel,ctx=document){ return Array.from(ctx.querySelectorAll(sel)); }
+
+    function highlightTargetsFor(proto){
+      // resaltado sutil en riesgos detectados
+      $$('#scene .risk').forEach(el=>{
+        if(!state.detected.has(el.dataset.id)) return; // sólo marcados
+        const types = JSON.parse(el.dataset.types);
+        const match = types.includes(proto) || (proto==='sobrecarga' && types.includes('uso_en_carga'));
+        el.style.boxShadow = match? '0 0 0 4px #22d3ee99' : ''; 
+      });
+      setTimeout(()=> $$('#scene .risk').forEach(el=> el.style.boxShadow=''), 1200);
+    }
+
+    function showKit(){ $('#kit').classList.add('visible'); buildKit(); }
+
+    function hideKit(){ $('#kit').classList.remove('visible'); $('#kit').innerHTML=''; }
+
+    function trySolve(el, tool){
+      const id = el.dataset.id;
+      if(state.resolved.has(id)) return; // ya resuelto
+      if(!state.detected.has(id)) { toast('Primero marca el peligro.'); return; }
+      state.attempts++;
+      const types = JSON.parse(el.dataset.types);
+      const isCritical = el.dataset.crit==='1';
+
+      // Regla Protocolo Rojo
+      if(isCritical && tool.id !== 'alerta_nivel5'){
+        errorFX(); speak('Negativo, Agente. Revisa tus protocolos. Protocolo Rojo requiere Alerta Nivel 5.');
+        state.errorsLeft--; renderHUD(); checkFail(); return;
+      }
+
+      const ok = types.includes(tool.protocolo) || (tool.protocolo==='sobrecarga' && types.includes('uso_en_carga'));
+      if(ok){
+        state.corrects++; state.resolved.add(id); el.classList.add('resolved'); el.classList.remove('marked');
+        successFX();
+        const sol = escenas[state.levelIndex].soluciones.find(s=>s.id===tool.id);
+        const phrase = sol?.texto_feedback || '¡Misión cumplida!';
+        speak('¡Amenaza neutralizada! '+phrase);
+        toast('¡Misión cumplida!');
+        // Añadir a colección/glosario
+        addToCollection(types[0]);
+        // Comprobar si completó fase
+        checkSolvedPhase();
+      } else {
+        errorFX(); speak('Negativo, Agente. Revisa tus protocolos.'); toast('Herramienta incorrecta'); state.errorsLeft--; renderHUD(); checkFail();
+      }
+    }
+
+    function addToCollection(tipo){
+      state.collection[tipo]=true;
+      localStorage.setItem('agente_collection', JSON.stringify(state.collection));
+      renderCollection();
+    }
+
+    function renderCollection(){
+      const list = $('#collectionList');
+      const keys = Object.keys(state.collection).filter(k=>state.collection[k]);
+      if(keys.length===0){ list.textContent='Encuentra y resuelve riesgos para llenar tu glosario.'; return; }
+      list.innerHTML = keys.map(k=>`<span class="badge">${k.replace('_',' ')}</span>`).join(' ');
+    }
+
+    function checkSolvedPhase(){
+      const lvl = escenas[state.levelIndex];
+      if(state.resolved.size === lvl.riesgos.length){
+        // Nivel completado
+        levelCompleted();
+      }
+    }
+
+    function checkFail(){
+      if(state.errorsLeft<=0){
+        // Derrota del nivel
+        levelFailed();
+      }
+    }
+
+    /* =========================================================
+       PROGRESO, MÉTRICAS Y PANTALLA FINAL
+       ========================================================= */
+    function startLevel(){
+      state.errorsLeft = MAX_ERRORS;
+      state.detected.clear();
+      state.resolved.clear();
+      state.attempts = 0; state.corrects=0;
+      renderScene(); hideKit(); renderHUD();
+      if(state.rushMode){ startTimer(); } else { stopTimer(true); }
+    }
+
+    function levelCompleted(){
+      stopTimer();
+      const lvl = escenas[state.levelIndex];
+      const total = lvl.riesgos.length;
+      const finalBody = $('#finalBody');
+      const timeStr = $('#timer').textContent.replace('⏱ ','');
+      const summary = `Riesgos detectados: ${state.detected.size}/${total}.\nResueltos correctamente: ${state.corrects}/${state.attempts}.\nErrores: ${MAX_ERRORS-state.errorsLeft}.`;
+      const title = (state.levelIndex===2)? '¡Misión Maestra completada!' : '¡Nivel superado!';
+      $('#finalTitle').textContent = title;
+      finalBody.innerHTML = `<p>${summary}</p>` +
+        (state.levelIndex===2 ? `<p>Neutralizaste ${state.corrects} riesgos en 3 escenas${state.collection['emergencia_roja']?' y activaste una Alerta de Nivel 5 a tiempo':''}. ¡Eres un Agente de élite!</p>` : '') +
+        (state.rushMode? `<p>Tiempo: <b>${timeStr}</b></p>` : '');
+      // Guardar récord si es rush
+      if(state.rushMode){
+        const key = 'nivel_'+(state.levelIndex+1);
+        const t = getElapsedMs();
+        state.records[key] = Math.min(state.records[key]||Infinity, t);
+        localStorage.setItem('agente_records', JSON.stringify(state.records));
+      }
+      $('#final').style.display='grid';
+      $('#nextLevel').style.display = (state.levelIndex<2)?'inline-block':'none';
+      $('#startRush').style.display = (state.levelIndex===2)?'inline-block':'none';
+      $('#retryLevel').style.display = 'inline-block';
+      $('#resetRun').style.display = 'inline-block';
+      speak((state.levelIndex===2)? '¡Protocolo Rojo activado! ¡Has protegido a todos! ¡Misión Maestra completada!':'¡Buen trabajo! Nivel completado.');
+    }
+
+    function levelFailed(){
+      stopTimer();
+      $('#finalTitle').textContent = 'Necesitamos otro intento';
+      $('#finalBody').innerHTML = `<p>Demasiados errores. La Comandante sugiere revisar el protocolo adecuado. Pista guiada: identifica el tipo de riesgo y elige la herramienta con el mismo protocolo.</p>`;
+      $('#final').style.display='grid';
+      $('#nextLevel').style.display='none';
+      $('#startRush').style.display='none';
+      speak('Nivel fallido. Intentémoslo de nuevo.');
+    }
+
+    $('#retryLevel').addEventListener('click', ()=>{ $('#final').style.display='none'; startLevel(); });
+    $('#nextLevel').addEventListener('click', ()=>{ $('#final').style.display='none'; if(state.levelIndex<2){ state.levelIndex++; startLevel(); } });
+    $('#resetRun').addEventListener('click', ()=>{ $('#final').style.display='none'; state.levelIndex=0; state.rushMode=false; startLevel(); });
+
+    /* =========================================================
+       CONTRARRELOJ
+       ========================================================= */
+    function startTimer(){ state.startedAt = Date.now(); clearInterval(state.timerInterval); state.timerInterval = setInterval(updateTimer, 200); }
+    function stopTimer(reset=false){ clearInterval(state.timerInterval); state.timerInterval=null; if(reset){ $('#timer').textContent='⏱ 00:00'; } }
+    function getElapsedMs(){ return state.startedAt? (Date.now()-state.startedAt) : 0; }
+    function updateTimer(){ const ms = getElapsedMs(); const s = Math.floor(ms/1000); const m = Math.floor(s/60); const ss = (s%60).toString().padStart(2,'0'); $('#timer').textContent = `⏱ ${m.toString().padStart(2,'0')}:${ss}`; }
+
+    $('#startRush').addEventListener('click', ()=>{
+      state.rushMode = true; $('#final').style.display='none'; state.levelIndex=0; startLevel(); toast('Modo Contrarreloj activado'); speak('Modo contrarreloj activado. ¡A toda velocidad, Agente!');
+    });
+
+    /* =========================================================
+       ZOOM / PAN (nivel 3)
+       ========================================================= */
+    let zoom = 1, panX = 0, panY = 0; let panning=false, lastX=0,lastY=0;
+    function enableZoomPan(){
+      resetZoomPan();
+      const sc = $('#scene');
+      sc.addEventListener('wheel', onWheelZoom, {passive:false});
+      sc.addEventListener('pointerdown', e=>{ panning=true; lastX=e.clientX; lastY=e.clientY; sc.setPointerCapture(e.pointerId); });
+      sc.addEventListener('pointerup', ()=>{ panning=false; });
+      sc.addEventListener('pointermove', e=>{ if(panning){ panX += (e.clientX-lastX); panY += (e.clientY-lastY); lastX=e.clientX; lastY=e.clientY; applyZP(); } });
+      $('#zoomIn').onclick=()=>{ zoom = Math.min(2.2, zoom+0.1); applyZP(); };
+      $('#zoomOut').onclick=()=>{ zoom = Math.max(0.8, zoom-0.1); applyZP(); };
+      $('#zoomReset').onclick=()=>{ resetZoomPan(); };
+    }
+    function onWheelZoom(e){ e.preventDefault(); const delta = Math.sign(e.deltaY); zoom = Math.min(2.2, Math.max(0.8, zoom - delta*0.1)); applyZP(); }
+    function resetZoomPan(){ zoom=1; panX=0; panY=0; applyZP(); }
+    function applyZP(){ const sc=$('#scene'); sc.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; sc.style.transformOrigin='center'; }
+
+    /* =========================================================
+       ACCESIBILIDAD Y UI SECUNDARIA
+       ========================================================= */
+    $('#toggleVoice').addEventListener('click', ()=>{ state.voiceOn=!state.voiceOn; $('#toggleVoice').textContent = (state.voiceOn? '🔈 Voz: ON':'🔇 Voz: OFF'); });
+    $('#muteAtStart').addEventListener('click', ()=>{ state.voiceOn=false; $('#toggleVoice').textContent='🔇 Voz: OFF'; toast('Voz desactivada'); });
+    $('#openCollection').addEventListener('click', ()=>{ const c=$('#collection'); c.hidden=!c.hidden; renderCollection(); });
+    $('#a11yHighlights').addEventListener('change', e=>{ $$('#scene .risk').forEach(el=> el.style.borderColor = e.target.checked? '#f59e0b' : 'transparent'); });
+    $('#a11yBigTargets').addEventListener('change', e=>{ $$('#scene .risk').forEach(el=>{ if(e.target.checked){ el.style.transform='scale(1.25)'; el.style.transformOrigin='center'; } else { el.style.transform=''; }}); });
+
+    // Botón de inicio: reproducir briefing por voz
+    $('#startBtn').addEventListener('click', ()=>{
+      $('#centerPanel').style.display='none';
+      speak('¡Atención, Agente! Hoy analizarás escenas de riesgo. Encuentra los peligros y aplica el protocolo correcto. Recuerda: si un dispositivo se sobrecalienta, dale espacio para respirar. Si hay golpes, agua o cables dañados, aléjalos o desconecta. Y si ves hinchado, humo u olor extraño, activa la Alerta de Nivel 5 y avisa a un adulto.');
+      startLevel();
+    });
+
+    /* =========================================================
+       TECLADO EN FASE SOLUCIÓN: aplicar herramienta seleccionada con Enter
+       ========================================================= */
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' && currentTool){
+        const el = document.activeElement;
+        if(el && el.classList.contains('risk')){ trySolve(el, currentTool); }
+      }
+    });
+
+    /* =========================================================
+       INIT HELPERS
+       ========================================================= */
+    function updateDatasetTips(){ $$('#scene .risk').forEach(el=> el.setAttribute('data-tip', el.dataset.tip)); }
+
+    // Cargar primera escena en pausa (panel visible). El juego inicia al presionar INICIAR MISIÓN
+    renderHUD();
+
+    // Pequeño easter fx de humo en emergencia (parpadeo rojo estilizado, no realista)
+    const style = document.createElement('style');
+    style.textContent = `.risk[data-crit="1"].marked::before{content:''; position:absolute; inset:-6px; border:3px solid #ef4444; border-radius:12px; box-shadow:0 0 18px #ef4444aa; animation:blink .7s infinite;}
+      @keyframes blink{ 50%{ opacity:.4; } }`;
+    document.head.appendChild(style);
+
+    // Exponer para pruebas manuales en consola
+    window.__state = state; window.__escenas = escenas;
+  </script>
+</body>
+</html>
