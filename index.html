@@ -154,7 +154,7 @@
             border-radius: 50%;
             border: 3px dashed transparent;
             transition: all 0.3s ease;
-            z-index: 5; /* Asegura que esté por encima de los objetos */
+            z-index: 5;
         }
 
         .risk-area:hover, .risk-area:focus-visible {
@@ -342,7 +342,6 @@
             opacity: 1;
         }
         
-        /* --- NUEVO: Indicador de Zoom/Scroll --- */
         #zoom-hint {
             position: absolute;
             top: 10px;
@@ -354,7 +353,7 @@
             border-radius: 20px;
             font-size: 16px;
             z-index: 15;
-            display: none; /* Se activa con JS */
+            display: none;
             animation: fadeInOut 4s ease-in-out;
         }
 
@@ -362,7 +361,6 @@
             0%, 100% { opacity: 0; }
             10%, 80% { opacity: 1; }
         }
-
     </style>
 </head>
 <body>
@@ -370,7 +368,8 @@
         <div id="intro-screen" class="screen active">
             <h1>Agente de Seguridad Tech</h1>
             <h2>Misión: Prevención</h2>
-            <p id="briefing-text">Cargando sistema...</p>
+            <p id="briefing-text">Pulsa para recibir tu misión.</p>
+            <button id="start-briefing-btn">COMENZAR BRIEFING</button>
             <button id="start-mission-btn" style="display:none;">INICIAR MISIÓN</button>
         </div>
         <div id="game-screen" class="screen">
@@ -401,6 +400,10 @@
             <p id="feedback-text"></p>
         </div>
     </div>
+
+    <!-- ============================================= -->
+    <!-- JAVASCRIPT EMBEBIDO - LÓGICA DEL JUEGO        -->
+    <!-- ============================================= -->
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const gameState = {
@@ -409,6 +412,7 @@
         };
         const dom = {
             introScreen: document.getElementById('intro-screen'), briefingText: document.getElementById('briefing-text'),
+            startBriefingBtn: document.getElementById('start-briefing-btn'), // NUEVO
             startBtn: document.getElementById('start-mission-btn'), gameScreen: document.getElementById('game-screen'),
             levelName: document.getElementById('level-name'), riskCounter: document.getElementById('risk-counter'),
             errorDisplay: document.getElementById('error-display'), sceneContainer: document.getElementById('scene-container'),
@@ -418,22 +422,19 @@
             nextActionBtn: document.getElementById('next-action-btn'), subtitleBar: document.getElementById('subtitle-bar'),
             feedbackOverlay: document.getElementById('feedback-overlay'), feedbackBox: document.getElementById('feedback-box'),
             feedbackTitle: document.getElementById('feedback-title'), feedbackText: document.getElementById('feedback-text'),
-            zoomHint: document.getElementById('zoom-hint'), // NUEVO
+            zoomHint: document.getElementById('zoom-hint'),
         };
         const synth = window.speechSynthesis;
         let audioContext;
-        try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); } 
-        catch(e) { console.warn("Web Audio API no es soportada en este navegador."); }
+        let isAudioInitialized = false;
         
         // =============================================
         // IMÁGENES EMBEBIDAS (Data URLs de SVGs)
         // =============================================
         const imageAssets = {
-            // Fondos
             background_bedroom: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="grad_wall" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#B0E0E6;stop-opacity:1" /><stop offset="100%" style="stop-color:#ADD8E6;stop-opacity:1" /></linearGradient></defs><rect width="800" height="600" fill="url(%23grad_wall)"/><rect y="450" width="800" height="150" fill="#D2B48C"/><rect y="445" width="800" height="10" fill="#8B4513"/><rect x="550" y="150" width="200" height="150" fill="#87CEFA" stroke="#FFF" stroke-width="10"/><line x1="650" y1="150" x2="650" y2="300" stroke="#FFF" stroke-width="5"/><line x1="550" y1="225" x2="750" y2="225" stroke="#FFF" stroke-width="5"/></svg>')}`,
             background_kitchen: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="patt_tiles" patternUnits="userSpaceOnUse" width="50" height="50"><rect width="50" height="50" fill="#F5F5DC"/><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#D3D3D3" stroke-width="1"/></pattern></defs><rect width="800" height="600" fill="#E6E6FA"/><rect width="800" height="400" fill="url(%23patt_tiles)"/><rect y="398" width="800" height="10" fill="#A9A9A9"/><rect x="50" y="100" width="300" height="150" fill="#F0E68C" stroke="#BDB76B" stroke-width="3"/><rect x="370" y="100" width="300" height="150" fill="#F0E68C" stroke="#BDB76B" stroke-width="3"/></svg>')}`,
             background_classroom: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="600" fill="#FFF8DC"/><rect y="500" width="800" height="100" fill="#B0C4DE"/><rect x="100" y="50" width="600" height="350" fill="#006400" stroke="#8B4513" stroke-width="15" rx="10"/><rect x="720" y="80" width="150" height="200" fill="#DEB887" stroke="#8B4513" stroke-width="5" transform="rotate(5 720 80)"/></svg>')}`,
-            // Objetos
             bed: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="20" width="96" height="38" rx="5" fill="#87CEEB" stroke="#5F9EA0" stroke-width="2"/><rect x="10" y="15" width="30" height="15" rx="5" fill="white" stroke="#B0C4DE" stroke-width="2"/><rect x="5" y="58" width="10" height="5" fill="#654321"/><rect x="85" y="58" width="10" height="5" fill="#654321"/></svg>')}`,
             desk: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><path d="M 5 20 L 95 20 L 90 75 L 10 75 Z" fill="#D2B48C" stroke="#8B4513" stroke-width="2"/><rect x="5" y="15" width="90" height="10" rx="3" fill="#A0522D" stroke="#8B4513" stroke-width="2"/></svg>')}`,
             laptop: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="10" width="90" height="50" rx="5" fill="#B0C4DE"/><rect x="10" y="15" width="80" height="35" fill="#2F4F4F"/><rect x="0" y="58" width="100" height="7" rx="2" fill="#778899"/></svg>')}`,
@@ -447,6 +448,9 @@
             jacket: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><path d="M 20 10 C 10 30, 15 70, 30 70 L 70 70 C 85 70, 90 30, 80 10 Q 50 -10, 20 10 Z" fill="#2E8B57" stroke="#006400" stroke-width="2"/><path d="M 50 10 V 65" stroke="#000" stroke-width="3" stroke-dasharray="5 5"/></svg>')}`,
             power_strip: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 150 40" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="146" height="36" rx="5" fill="#F5F5F5" stroke="#B0B0B0" stroke-width="2"/><circle cx="25" cy="20" r="8" stroke="#808080" fill="white"/><circle cx="55" cy="20" r="8" stroke="#808080" fill="white"/><circle cx="85" cy="20" r="8" stroke="#808080" fill="white"/><circle cx="115" cy="20" r="8" stroke="#808080" fill="white"/></svg>')}`,
         };
+        // =============================================
+        // DATOS DE NIVELES, RIESGOS Y SOLUCIONES
+        // =============================================
         const levels = [
             {
                 name: "Nivel 1: El Cuarto (Entrenamiento)", background: imageAssets.background_bedroom, sceneBuilder: buildBedroomScene,
@@ -490,108 +494,69 @@
                 ]
             }
         ];
-        function playSound(type) { /* ... Lógica de sonido sin cambios ... */ if (!audioContext) return; const o = audioContext.createOscillator(), g = audioContext.createGain(); o.connect(g); g.connect(audioContext.destination); g.gain.setValueAtTime(0.1, audioContext.currentTime); switch(type){ case 'detect': o.type='sine'; o.frequency.setValueAtTime(880, audioContext.currentTime); break; case 'success': o.type='triangle'; o.frequency.setValueAtTime(523.25, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(1e-5, audioContext.currentTime + .5); break; case 'error': o.type='square'; o.frequency.setValueAtTime(150, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(1e-5, audioContext.currentTime + .5); break; case 'alert': o.type='sawtooth'; o.frequency.setValueAtTime(900, audioContext.currentTime); o.frequency.linearRampToValueAtTime(700, audioContext.currentTime + .5); g.gain.exponentialRampToValueAtTime(1e-5, audioContext.currentTime + 1); break; } o.start(); o.stop(audioContext.currentTime + .3); }
-        function speak(text, callback) { if(synth.speaking){synth.cancel();} const u = new SpeechSynthesisUtterance(text); u.lang='es-ES'; u.pitch=1.1; u.rate=1; dom.subtitleBar.textContent=text; dom.subtitleBar.classList.add('visible'); u.onend=()=>{dom.subtitleBar.classList.remove('visible'); if(callback) callback();}; synth.speak(u); }
-        
+        // =============================================
+        // FUNCIONES DE AUDIO Y VOZ
+        // =============================================
+        function initializeAudio() {
+            if (isAudioInitialized) return;
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // Solución para Safari/iOS: resumir el contexto de audio en una interacción del usuario.
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                isAudioInitialized = true;
+            } catch(e) {
+                console.warn("Web Audio API no es soportada en este navegador.");
+            }
+        }
+        function playSound(type) { if (!isAudioInitialized) return; const o=audioContext.createOscillator(),g=audioContext.createGain();o.connect(g);g.connect(audioContext.destination);g.gain.setValueAtTime(0.1,audioContext.currentTime);switch(type){case 'detect':o.type='sine';o.frequency.setValueAtTime(880,audioContext.currentTime);break;case 'success':o.type='triangle';o.frequency.setValueAtTime(523.25,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(1e-5,audioContext.currentTime+.5);break;case 'error':o.type='square';o.frequency.setValueAtTime(150,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(1e-5,audioContext.currentTime+.5);break;case 'alert':o.type='sawtooth';o.frequency.setValueAtTime(900,audioContext.currentTime);o.frequency.linearRampToValueAtTime(700,audioContext.currentTime+.5);g.gain.exponentialRampToValueAtTime(1e-5,audioContext.currentTime+1);break;}o.start();o.stop(audioContext.currentTime+.3);}
+        function speak(text, callback) { if(synth.speaking){synth.cancel();}const u=new SpeechSynthesisUtterance(text);u.lang='es-ES';u.pitch=1.1;u.rate=1;dom.subtitleBar.textContent=text;dom.subtitleBar.classList.add('visible');u.onend=()=>{dom.subtitleBar.classList.remove('visible');if(callback)callback();};synth.speak(u);}
+
         // =============================================
         // CONSTRUCTORES DE ESCENAS (con imágenes)
         // =============================================
-        function buildBedroomScene() {
-            dom.scene.innerHTML = `
-                <img src="${imageAssets.desk}" alt="Escritorio" class="scene-element" style="left: 55%; top: 60%; width: 35%; height: 30%; z-index: 2;">
-                <img src="${imageAssets.bed}" alt="Cama con almohada" class="scene-element" style="left: 20%; top: 50%; width: 40%; height: 40%; z-index: 2;">
-                <img src="${imageAssets.laptop}" alt="Laptop sobre el escritorio" class="scene-element" style="left: 60%; top: 50%; width: 20%; height: 15%; z-index: 3;">
-                <img src="${imageAssets.juice_glass}" alt="Vaso de jugo" class="scene-element" style="left: 65%; top: 65%; width: 8%; height: 12%; z-index: 3;">
-                <img src="${imageAssets.phone}" alt="Teléfono en el suelo" class="scene-element" style="left: 45%; top: 85%; width: 7%; height: 14%; z-index: 3;">
-            `;
-        }
-        function buildKitchenScene() {
-            dom.scene.innerHTML = `
-                <img src="${imageAssets.kitchen_counter}" alt="Encimera de cocina" class="scene-element" style="left: 0; top: 70%; width: 100%; height: 30%; z-index: 1;">
-                <img src="${imageAssets.sink}" alt="Fregadero" class="scene-element" style="left: 60%; top: 60%; width: 25%; height: 15%; z-index: 2;">
-                <img src="${imageAssets.phone}" alt="Teléfono calentándose" class="scene-element" style="left: 45%; top: 55%; width: 8%; height: 15%; filter: drop-shadow(0 0 10px rgba(255,100,0,0.8)); z-index: 3;">
-                <img src="${imageAssets.tablet}" alt="Tablet" class="scene-element" style="left: 75%; top: 50%; width: 15%; height: 10%; z-index: 3;">
-                <img src="${imageAssets.damaged_cable}" alt="Cable dañado" class="scene-element" style="left: 15%; top: 62%; width: 30%; height: 5%; z-index: 3;">
-            `;
-        }
-        function buildClassroomScene() {
-            // CORREGIDO: Asegura que todos los objetos se creen correctamente.
-            dom.scene.innerHTML = `
-                <img src="${imageAssets.desk}" alt="Pupitre" class="scene-element" style="left: 10%; top: 60%; width: 25%; height: 20%; z-index: 2;">
-                <img src="${imageAssets.desk}" alt="Pupitre" class="scene-element" style="left: 40%; top: 50%; width: 25%; height: 20%; z-index: 2;">
-                <img src="${imageAssets.charging_cart}" alt="Carrito de carga de tablets" class="scene-element" style="left: 70%; top: 25%; width: 25%; height: 50%; z-index: 2;">
-                <img src="${imageAssets.jacket}" alt="Chamarra" class="scene-element" style="left: 75%; top: 30%; width: 20%; height: 15%; transform: rotate(-10deg); z-index: 4;">
-                <img src="${imageAssets.tablet}" alt="Tablet al borde del pupitre" class="scene-element" style="left: 18%; top: 58%; width: 12%; height: 8%; z-index: 3;">
-                <img src="${imageAssets.tablet}" alt="Tablet hinchada" class="scene-element" style="left: 80%; top: 50%; width: 10%; height: 6%; filter: drop-shadow(0 0 8px red); z-index: 3;" id="emergency-device">
-                <img src="${imageAssets.power_strip}" alt="Regleta de enchufes" class="scene-element" style="left: 45%; top: 88%; width: 15%; height: 5%; z-index: 3;">
-            `;
-        }
+        function buildBedroomScene(){dom.scene.innerHTML=`<img src="${imageAssets.desk}" alt="Escritorio" class="scene-element" style="left:55%;top:60%;width:35%;height:30%;z-index:2;"><img src="${imageAssets.bed}" alt="Cama con almohada" class="scene-element" style="left:20%;top:50%;width:40%;height:40%;z-index:2;"><img src="${imageAssets.laptop}" alt="Laptop sobre el escritorio" class="scene-element" style="left:60%;top:50%;width:20%;height:15%;z-index:3;"><img src="${imageAssets.juice_glass}" alt="Vaso de jugo" class="scene-element" style="left:65%;top:65%;width:8%;height:12%;z-index:3;"><img src="${imageAssets.phone}" alt="Teléfono en el suelo" class="scene-element" style="left:45%;top:85%;width:7%;height:14%;z-index:3;">`;}
+        function buildKitchenScene(){dom.scene.innerHTML=`<img src="${imageAssets.kitchen_counter}" alt="Encimera de cocina" class="scene-element" style="left:0;top:70%;width:100%;height:30%;z-index:1;"><img src="${imageAssets.sink}" alt="Fregadero" class="scene-element" style="left:60%;top:60%;width:25%;height:15%;z-index:2;"><img src="${imageAssets.phone}" alt="Teléfono calentándose" class="scene-element" style="left:45%;top:55%;width:8%;height:15%;filter:drop-shadow(0 0 10px rgba(255,100,0,0.8));z-index:3;"><img src="${imageAssets.tablet}" alt="Tablet" class="scene-element" style="left:75%;top:50%;width:15%;height:10%;z-index:3;"><img src="${imageAssets.damaged_cable}" alt="Cable dañado" class="scene-element" style="left:15%;top:62%;width:30%;height:5%;z-index:3;">`;}
+        function buildClassroomScene(){dom.scene.innerHTML=`<img src="${imageAssets.desk}" alt="Pupitre" class="scene-element" style="left:10%;top:60%;width:25%;height:20%;z-index:2;"><img src="${imageAssets.desk}" alt="Pupitre" class="scene-element" style="left:40%;top:50%;width:25%;height:20%;z-index:2;"><img src="${imageAssets.charging_cart}" alt="Carrito de carga de tablets" class="scene-element" style="left:70%;top:25%;width:25%;height:50%;z-index:2;"><img src="${imageAssets.jacket}" alt="Chamarra" class="scene-element" style="left:75%;top:30%;width:20%;height:15%;transform:rotate(-10deg);z-index:4;"><img src="${imageAssets.tablet}" alt="Tablet al borde del pupitre" class="scene-element" style="left:18%;top:58%;width:12%;height:8%;z-index:3;"><img src="${imageAssets.tablet}" alt="Tablet hinchada" class="scene-element" style="left:80%;top:50%;width:10%;height:6%;filter:drop-shadow(0 0 8px red);z-index:3;" id="emergency-device"><img src="${imageAssets.power_strip}" alt="Regleta de enchufes" class="scene-element" style="left:45%;top:88%;width:15%;height:5%;z-index:3;">`;}
+
         // =============================================
         // LÓGICA PRINCIPAL DEL JUEGO
         // =============================================
         function init() {
             dom.startBtn.addEventListener('click', startMission);
-            speak("¡Atención, Agente! Tu misión de hoy es analizar escenas en busca de riesgos tecnológicos. Encuentra los peligros y aplica el protocolo correcto para neutralizarlos. ¡Prepara tu equipo!", () => {
-                dom.briefingText.innerHTML = "¡Atención, Agente! Hoy analizarás escenas de riesgo. Encuentra los peligros y aplica el protocolo correcto.";
-                dom.startBtn.style.display = 'block';
+            dom.startBriefingBtn.addEventListener('click', () => {
+                initializeAudio();
+                dom.startBriefingBtn.style.display = 'none';
+                dom.briefingText.textContent = "Cargando sistema...";
+                
+                speak("¡Atención, Agente! Tu misión de hoy es analizar escenas en busca de riesgos tecnológicos. Encuentra los peligros y aplica el protocolo correcto para neutralizarlos. ¡Prepara tu equipo!", () => {
+                    dom.briefingText.innerHTML = "¡Atención, Agente! Hoy analizarás escenas de riesgo. Encuentra los peligros y aplica el protocolo correcto.";
+                    dom.startBtn.style.display = 'block';
+                });
             });
         }
-        function startMission() {
-            dom.introScreen.classList.remove('active');
-            dom.gameScreen.classList.add('active');
-            loadLevel(0);
-        }
-        function switchScreen(screenToShow) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            screenToShow.classList.add('active');
-        }
-        function loadLevel(levelIndex) {
-            gameState.currentLevel = levelIndex;
-            gameState.phase = 'detection';
-            gameState.detectedRisks = [];
-            gameState.solvedRisks = [];
-            gameState.errors = 0;
-            const level = levels[levelIndex];
-            
-            dom.levelName.textContent = level.name;
-            updateRiskCounter();
-            updateErrorDisplay();
-            dom.agentKit.classList.remove('visible');
-            
-            // NUEVO: Cargar fondo de escena
-            dom.scene.style.backgroundImage = `url("${level.background}")`;
-
-            dom.scene.innerHTML = '';
-            level.sceneBuilder();
-            renderRisks();
-            
-            // Habilitar zoom y mostrar pista
-            dom.zoomHint.style.display = 'none';
-            if (level.zoomable) {
-                dom.sceneContainer.style.overflow = 'auto';
-                dom.scene.style.width = dom.scene.style.height = '150%';
-                dom.zoomHint.style.display = 'block';
-            } else {
-                dom.sceneContainer.style.overflow = 'hidden';
-                dom.scene.style.width = dom.scene.style.height = '100%';
-            }
-
-            speak(`Iniciando ${level.name}. Fase de detección activada. ¡Abre bien los ojos, Agente!`);
-        }
-        function renderRisks() { /* ... Lógica sin cambios ... */ const level = levels[gameState.currentLevel]; level.risks.forEach(risk => { const riskEl = document.createElement('div'); riskEl.className = 'risk-area'; riskEl.id = risk.id; riskEl.style.left = `${risk.x}%`; riskEl.style.top = `${risk.y}%`; riskEl.style.width = `${risk.w}%`; riskEl.style.height = `${risk.h}%`; riskEl.setAttribute('data-risk-id', risk.id); riskEl.setAttribute('tabindex', '0'); riskEl.setAttribute('aria-label', `Posible riesgo: ${risk.descripcion}`); const tooltip = document.createElement('span'); tooltip.className = 'tooltip'; tooltip.textContent = risk.descripcion; riskEl.appendChild(tooltip); riskEl.addEventListener('click', handleRiskClick); riskEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') handleRiskClick(e); }); riskEl.addEventListener('dragover', (e) => e.preventDefault()); riskEl.addEventListener('drop', handleDrop); dom.scene.appendChild(riskEl); }); }
-        function handleRiskClick(e) { /* ... Lógica sin cambios ... */ if (gameState.phase !== 'detection') return; const riskId = e.currentTarget.dataset.riskId; if (gameState.detectedRisks.includes(riskId)) return; gameState.detectedRisks.push(riskId); e.currentTarget.classList.add('detected'); if(levels[gameState.currentLevel].risks.find(r=>r.id === riskId).tipo === 'emergencia_roja'){ e.currentTarget.classList.add('emergency-risk'); } playSound('detect'); speak("¡Peligro detectado, Agente!"); updateRiskCounter(); if (gameState.detectedRisks.length === levels[gameState.currentLevel].risks.length) { startSolutionPhase(); } }
-        function updateRiskCounter() { const totalRisks = levels[gameState.currentLevel].risks.length; dom.riskCounter.textContent = `Riesgos detectados: ${gameState.detectedRisks.length}/${totalRisks}`; }
-        function startSolutionPhase() { gameState.phase = 'solution'; renderKit(); dom.agentKit.classList.add('visible'); speak("Todos los riesgos localizados. Kit de Agente desplegado. Procede a neutralizar las amenazas."); }
-        function renderKit() { /* ... Lógica sin cambios ... */ dom.agentKit.innerHTML = ''; const level = levels[gameState.currentLevel]; level.solutions.forEach(sol => { const toolEl = document.createElement('div'); toolEl.className = 'tool'; toolEl.id = sol.id; toolEl.innerHTML = sol.icono; toolEl.draggable = true; toolEl.setAttribute('data-solution-id', sol.id); toolEl.setAttribute('tabindex', '0'); toolEl.setAttribute('aria-label', `Herramienta: ${sol.nombre}`); const tooltip = document.createElement('span'); tooltip.className = 'tooltip'; tooltip.textContent = sol.nombre; toolEl.appendChild(tooltip); toolEl.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', sol.id); toolEl.classList.add('dragging'); }); toolEl.addEventListener('dragend', () => toolEl.classList.remove('dragging')); dom.agentKit.appendChild(toolEl); }); }
-        function handleDrop(e) { /* ... Lógica sin cambios ... */ e.preventDefault(); if(gameState.phase !== 'solution') return; const solutionId = e.dataTransfer.getData('text/plain'); const riskId = e.currentTarget.dataset.riskId; const riskEl = document.getElementById(riskId); if (gameState.solvedRisks.includes(riskId)) return; const level = levels[gameState.currentLevel]; const risk = level.risks.find(r => r.id === riskId); const solution = level.solutions.find(s => s.id === solutionId); if (risk.tipo === 'emergencia_roja' && solution.protocolo !== 'emergencia_roja') { speak("¡Negativo, Agente! Ese riesgo es crítico. Activa la Alerta de Nivel 5 inmediatamente. NO te acerques."); handleIncorrectSolution(); return; } if (risk.solucion_id === solution.id) { handleCorrectSolution(riskEl, solution); } else { speak("Negativo, Agente. Revisa tus protocolos. Esa no es la herramienta correcta."); handleIncorrectSolution(); } }
-        function handleCorrectSolution(riskEl, solution) { /* ... Lógica sin cambios ... */ gameState.solvedRisks.push(riskEl.id); riskEl.classList.add('solved'); const toolEl = document.getElementById(solution.id); toolEl.classList.add('used'); toolEl.draggable = false; gameState.totalRisksNeutralized++; if(solution.protocolo === 'emergencia_roja') { gameState.totalAlertsActivated++; playSound('alert'); } else { playSound('success'); } showFeedback('success', '¡Amenaza Neutralizada!', solution.texto_feedback); speak(`¡Gran trabajo de prevención! ${solution.texto_feedback}`); if (gameState.solvedRisks.length === levels[gameState.currentLevel].risks.length) { setTimeout(completeLevel, 2500); } }
-        function handleIncorrectSolution() { /* ... Lógica sin cambios ... */ gameState.errors++; updateErrorDisplay(); playSound('error'); showFeedback('error', 'Protocolo Incorrecto', "Inténtalo de nuevo, Agente. ¡La seguridad depende de ti!"); if (gameState.errors >= gameState.maxErrors) { setTimeout(gameOver, 2500); } }
-        function updateErrorDisplay() { const hearts = dom.errorDisplay.querySelectorAll('span'); hearts.forEach((heart, index) => { if (index < gameState.errors) { heart.classList.add('used'); } else { heart.classList.remove('used'); } }); }
-        function showFeedback(type, title, text) { dom.feedbackTitle.textContent = title; dom.feedbackText.textContent = text; dom.feedbackBox.className = type; dom.feedbackOverlay.style.display = 'flex'; setTimeout(() => { dom.feedbackOverlay.style.display = 'none'; }, 2000); }
-        function completeLevel() { /* ... Lógica sin cambios ... */ switchScreen(dom.endScreen); const isLastLevel = gameState.currentLevel === levels.length - 1; if (isLastLevel) { dom.endTitle.textContent = "¡Misión Maestra Completada!"; dom.endMessage.textContent = `Has neutralizado ${gameState.totalRisksNeutralized} riesgos en ${levels.length} escenas y activaste ${gameState.totalAlertsActivated} Alerta de Nivel 5 a tiempo. ¡Eres un Agente de élite!`; dom.endStats.innerHTML = `🏅<br>Has ganado la Medalla al Honor Preventivo.`; dom.nextActionBtn.textContent = "Jugar de Nuevo"; dom.nextActionBtn.onclick = () => location.reload(); speak(dom.endTitle.textContent + " " + dom.endMessage.textContent); } else { dom.endTitle.textContent = `¡Nivel ${gameState.currentLevel + 1} Superado!`; dom.endMessage.textContent = "¡Excelente trabajo, Agente! Has asegurado la zona."; const levelRisks = levels[gameState.currentLevel].risks.length; dom.endStats.textContent = `Riesgos neutralizados: ${levelRisks}/${levelRisks}. Errores: ${gameState.errors}/${gameState.maxErrors}.`; dom.nextActionBtn.textContent = `Continuar a Nivel ${gameState.currentLevel + 2}`; dom.nextActionBtn.onclick = () => { switchScreen(dom.gameScreen); loadLevel(gameState.currentLevel + 1); }; speak(dom.endTitle.textContent + " ¡A la siguiente misión!"); } }
-        function gameOver() { /* ... Lógica sin cambios ... */ switchScreen(dom.endScreen); dom.endTitle.textContent = "Misión Fallida"; dom.endMessage.textContent = "Demasiados errores en el protocolo, Agente. La seguridad ha sido comprometida. Es necesario reintentar la misión."; dom.endStats.textContent = "Recuerda: la observación y la calma son tus mejores herramientas."; dom.nextActionBtn.textContent = "Reintentar Nivel"; dom.nextActionBtn.onclick = () => { switchScreen(dom.gameScreen); loadLevel(gameState.currentLevel); }; speak(dom.endTitle.textContent + ". No te rindas, volvemos a intentarlo."); }
+        function startMission(){dom.introScreen.classList.remove('active');dom.gameScreen.classList.add('active');loadLevel(0);}
+        function switchScreen(screenToShow){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));screenToShow.classList.add('active');}
+        function loadLevel(levelIndex){gameState.currentLevel=levelIndex;gameState.phase='detection';gameState.detectedRisks=[];gameState.solvedRisks=[];gameState.errors=0;const level=levels[levelIndex];dom.levelName.textContent=level.name;updateRiskCounter();updateErrorDisplay();dom.agentKit.classList.remove('visible');dom.scene.style.backgroundImage=`url("${level.background}")`;dom.scene.innerHTML='';level.sceneBuilder();renderRisks();dom.zoomHint.style.display='none';if(level.zoomable){dom.sceneContainer.style.overflow='auto';dom.scene.style.width=dom.scene.style.height='150%';dom.zoomHint.style.display='block';}else{dom.sceneContainer.style.overflow='hidden';dom.scene.style.width=dom.scene.style.height='100%';}speak(`Iniciando ${level.name}. Fase de detección activada. ¡Abre bien los ojos, Agente!`);}
+        function renderRisks(){const level=levels[gameState.currentLevel];level.risks.forEach(risk=>{const riskEl=document.createElement('div');riskEl.className='risk-area';riskEl.id=risk.id;riskEl.style.left=`${risk.x}%`;riskEl.style.top=`${risk.y}%`;riskEl.style.width=`${risk.w}%`;riskEl.style.height=`${risk.h}%`;riskEl.setAttribute('data-risk-id',risk.id);riskEl.setAttribute('tabindex','0');riskEl.setAttribute('aria-label',`Posible riesgo: ${risk.descripcion}`);const tooltip=document.createElement('span');tooltip.className='tooltip';tooltip.textContent=risk.descripcion;riskEl.appendChild(tooltip);riskEl.addEventListener('click',handleRiskClick);riskEl.addEventListener('keydown',e=>{if(e.key==='Enter')handleRiskClick(e);});riskEl.addEventListener('dragover',e=>e.preventDefault());riskEl.addEventListener('drop',handleDrop);dom.scene.appendChild(riskEl);});}
+        function handleRiskClick(e){if(gameState.phase!=='detection')return;const riskId=e.currentTarget.dataset.riskId;if(gameState.detectedRisks.includes(riskId))return;gameState.detectedRisks.push(riskId);e.currentTarget.classList.add('detected');if(levels[gameState.currentLevel].risks.find(r=>r.id===riskId).tipo==='emergencia_roja'){e.currentTarget.classList.add('emergency-risk');}playSound('detect');speak("¡Peligro detectado, Agente!");updateRiskCounter();if(gameState.detectedRisks.length===levels[gameState.currentLevel].risks.length){startSolutionPhase();}}
+        function updateRiskCounter(){const totalRisks=levels[gameState.currentLevel].risks.length;dom.riskCounter.textContent=`Riesgos detectados: ${gameState.detectedRisks.length}/${totalRisks}`;}
+        function startSolutionPhase(){gameState.phase='solution';renderKit();dom.agentKit.classList.add('visible');speak("Todos los riesgos localizados. Kit de Agente desplegado. Procede a neutralizar las amenazas.");}
+        function renderKit(){dom.agentKit.innerHTML='';const level=levels[gameState.currentLevel];level.solutions.forEach(sol=>{const toolEl=document.createElement('div');toolEl.className='tool';toolEl.id=sol.id;toolEl.innerHTML=sol.icono;toolEl.draggable=true;toolEl.setAttribute('data-solution-id',sol.id);toolEl.setAttribute('tabindex','0');toolEl.setAttribute('aria-label',`Herramienta: ${sol.nombre}`);const tooltip=document.createElement('span');tooltip.className='tooltip';tooltip.textContent=sol.nombre;toolEl.appendChild(tooltip);toolEl.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',sol.id);toolEl.classList.add('dragging');});toolEl.addEventListener('dragend',()=>toolEl.classList.remove('dragging'));dom.agentKit.appendChild(toolEl);});}
+        function handleDrop(e){e.preventDefault();if(gameState.phase!=='solution')return;const solutionId=e.dataTransfer.getData('text/plain');const riskId=e.currentTarget.dataset.riskId;const riskEl=document.getElementById(riskId);if(gameState.solvedRisks.includes(riskId))return;const level=levels[gameState.currentLevel];const risk=level.risks.find(r=>r.id===riskId);const solution=level.solutions.find(s=>s.id===solutionId);if(risk.tipo==='emergencia_roja'&&solution.protocolo!=='emergencia_roja'){speak("¡Negativo, Agente! Ese riesgo es crítico. Activa la Alerta de Nivel 5 inmediatamente. NO te acerques.");handleIncorrectSolution();return;}if(risk.solucion_id===solution.id){handleCorrectSolution(riskEl,solution);}else{speak("Negativo, Agente. Revisa tus protocolos. Esa no es la herramienta correcta.");handleIncorrectSolution();}}
+        function handleCorrectSolution(riskEl,solution){gameState.solvedRisks.push(riskEl.id);riskEl.classList.add('solved');const toolEl=document.getElementById(solution.id);toolEl.classList.add('used');toolEl.draggable=false;gameState.totalRisksNeutralized++;if(solution.protocolo==='emergencia_roja'){gameState.totalAlertsActivated++;playSound('alert');}else{playSound('success');}showFeedback('success','¡Amenaza Neutralizada!',solution.texto_feedback);speak(`¡Gran trabajo de prevención! ${solution.texto_feedback}`);if(gameState.solvedRisks.length===levels[gameState.currentLevel].risks.length){setTimeout(completeLevel,2500);}}
+        function handleIncorrectSolution(){gameState.errors++;updateErrorDisplay();playSound('error');showFeedback('error','Protocolo Incorrecto',"Inténtalo de nuevo, Agente. ¡La seguridad depende de ti!");if(gameState.errors>=gameState.maxErrors){setTimeout(gameOver,2500);}}
+        function updateErrorDisplay(){const hearts=dom.errorDisplay.querySelectorAll('span');hearts.forEach((heart,index)=>{if(index<gameState.errors){heart.classList.add('used');}else{heart.classList.remove('used');}});}
+        function showFeedback(type,title,text){dom.feedbackTitle.textContent=title;dom.feedbackText.textContent=text;dom.feedbackBox.className=type;dom.feedbackOverlay.style.display='flex';setTimeout(()=>{dom.feedbackOverlay.style.display='none';},2000);}
+        function completeLevel(){switchScreen(dom.endScreen);const isLastLevel=gameState.currentLevel===levels.length-1;if(isLastLevel){dom.endTitle.textContent="¡Misión Maestra Completada!";dom.endMessage.textContent=`Has neutralizado ${gameState.totalRisksNeutralized} riesgos en ${levels.length} escenas y activaste ${gameState.totalAlertsActivated} Alerta de Nivel 5 a tiempo. ¡Eres un Agente de élite!`;dom.endStats.innerHTML=`🏅<br>Has ganado la Medalla al Honor Preventivo.`;dom.nextActionBtn.textContent="Jugar de Nuevo";dom.nextActionBtn.onclick=()=>location.reload();speak(dom.endTitle.textContent+" "+dom.endMessage.textContent);}else{dom.endTitle.textContent=`¡Nivel ${gameState.currentLevel+1} Superado!`;dom.endMessage.textContent="¡Excelente trabajo, Agente! Has asegurado la zona.";const levelRisks=levels[gameState.currentLevel].risks.length;dom.endStats.textContent=`Riesgos neutralizados: ${levelRisks}/${levelRisks}. Errores: ${gameState.errors}/${gameState.maxErrors}.`;dom.nextActionBtn.textContent=`Continuar a Nivel ${gameState.currentLevel+2}`;dom.nextActionBtn.onclick=()=>{switchScreen(dom.gameScreen);loadLevel(gameState.currentLevel+1);};speak(dom.endTitle.textContent+" ¡A la siguiente misión!");}}
+        function gameOver(){switchScreen(dom.endScreen);dom.endTitle.textContent="Misión Fallida";dom.endMessage.textContent="Demasiados errores en el protocolo, Agente. La seguridad ha sido comprometida. Es necesario reintentar la misión.";dom.endStats.textContent="Recuerda: la observación y la calma son tus mejores herramientas.";dom.nextActionBtn.textContent="Reintentar Nivel";dom.nextActionBtn.onclick=()=>{switchScreen(dom.gameScreen);loadLevel(gameState.currentLevel);};speak(dom.endTitle.textContent+". No te rindas, volvemos a intentarlo.");}
+        
+        // INICIO DEL JUEGO
         init();
     });
     </script>
 </body>
 </html>
+
+
