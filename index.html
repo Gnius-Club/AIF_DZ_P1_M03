@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Agente de Seguridad Tech: Misión Prevención</title>
     
     <!-- ============================================= -->
-    <!-- ESTILOS CSS EMBEBIDOS                       -->
+    <!-- ESTILOS CSS (MEJORADOS)                     -->
     <!-- ============================================= -->
     <style>
         :root {
@@ -19,13 +19,15 @@
             --color-warning: #ffeb3b;
             --font-main: 'Segoe UI', 'Helvetica Neue', sans-serif;
             --font-display: 'Consolas', 'Courier New', monospace;
+            --kit-height: 140px; /* Altura fija para calcular zonas seguras */
         }
 
-        /* --- Estructura y Estilos Generales --- */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            user-select: none; /* Evita selección de texto accidental */
+            -webkit-user-select: none;
         }
 
         html, body {
@@ -34,185 +36,136 @@
             font-family: var(--font-main);
             background-color: var(--color-bg);
             color: var(--color-text);
-            font-size: 18px;
+            font-size: 16px; /* Base size ajustado */
         }
 
+        /* --- Pantallas y Layout --- */
         #game-container {
             width: 100%;
             height: 100%;
+            position: relative;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
         }
 
         .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            background-color: var(--color-bg);
+            z-index: 1;
             padding: 20px;
             text-align: center;
         }
 
-        .screen.active {
-            display: flex;
-        }
+        .screen.active { display: flex; z-index: 2; }
 
+        /* --- Tipografía y Botones --- */
         h1, h2 {
             font-family: var(--font-display);
             color: var(--color-accent);
-            text-shadow: 0 0 5px var(--color-accent);
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
             margin-bottom: 20px;
         }
 
-        p {
-            max-width: 800px;
-            line-height: 1.6;
-        }
+        p { max-width: 700px; line-height: 1.6; font-size: 1.2rem; margin-bottom: 20px; }
 
         button {
             font-family: var(--font-display);
-            font-size: 22px;
-            padding: 15px 30px;
+            font-size: 1.2rem;
+            padding: 15px 40px;
             background-color: var(--color-accent);
             color: var(--color-primary);
             border: 2px solid var(--color-accent);
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 5px;
             text-transform: uppercase;
+            font-weight: bold;
         }
 
-        button:hover, button:focus-visible {
-            background-color: var(--color-primary);
-            color: var(--color-accent);
-            box-shadow: 0 0 15px var(--color-accent);
-            outline: none;
-        }
+        button:active { transform: scale(0.95); }
+        button:hover { box-shadow: 0 0 20px var(--color-accent); }
 
-        /* --- Pantalla de Juego --- */
-        #game-screen {
-            justify-content: flex-start;
-        }
-
+        /* --- UI de Juego --- */
         #game-ui-top {
+            position: absolute;
+            top: 0;
             width: 100%;
+            height: 60px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 20px;
-            background-color: rgba(13, 18, 43, 0.8);
+            padding: 0 20px;
+            background: rgba(13, 18, 43, 0.9);
             border-bottom: 2px solid var(--color-accent);
-            z-index: 10;
+            z-index: 20;
         }
 
-        #level-name, #risk-counter, #error-display {
-            font-family: var(--font-display);
-            font-size: 20px;
-        }
+        #level-info { font-family: var(--font-display); color: var(--color-accent); }
+        #stats-panel span { margin-left: 15px; font-weight: bold; }
+        .heart { color: var(--color-error); font-size: 1.5rem; transition: filter 0.3s; }
+        .heart.lost { filter: grayscale(100%) opacity(0.3); }
 
-        #error-display span {
-            color: var(--color-error);
-            font-size: 24px;
-            margin: 0 2px;
-            transition: color 0.3s;
-        }
-        #error-display span.used {
-            color: #555;
-        }
-
+        /* --- Escenario --- */
         #scene-container {
             width: 100%;
-            flex-grow: 1;
+            height: 100%;
             position: relative;
-            background-color: #f0f8ff;
-            overflow: hidden; 
+            background-color: #333;
+            overflow: hidden;
         }
         
         #scene {
-            position: relative;
             width: 100%;
             height: 100%;
             background-size: cover;
             background-position: center;
-            transition: background-image 0.5s ease-in-out;
+            position: relative;
         }
 
-        .scene-element { 
-            position: absolute;
-            object-fit: contain;
-        }
-        
-        /* --- Riesgos y Tooltips --- */
+        /* --- Elementos Interactivos (Riesgos) --- */
         .risk-area {
             position: absolute;
+            /* Debug: border: 1px solid white; */
             cursor: pointer;
+            z-index: 10;
+            transform-origin: center;
+        }
+
+        /* Animación para indicar que es interactivo (Detección) */
+        .risk-area::after {
+            content: '';
+            position: absolute;
+            top: -10px; left: -10px; right: -10px; bottom: -10px;
             border-radius: 50%;
-            border: 3px dashed transparent;
-            transition: all 0.3s ease;
-            z-index: 5;
+            border: 2px dashed rgba(255, 255, 0, 0.0); /* Invisible por defecto */
+            transition: all 0.3s;
         }
 
-        .risk-area:hover, .risk-area:focus-visible {
-            background-color: rgba(255, 255, 0, 0.3);
-            border-color: var(--color-warning);
-            animation: pulse 1.5s infinite;
-            outline: none;
-        }
-
-        .risk-area.detected {
-            background-color: rgba(255, 0, 0, 0.4);
+        .risk-area.detected::after {
             border: 3px solid var(--color-error);
-            animation: none;
-            cursor: default;
+            background-color: rgba(255, 0, 0, 0.2);
+            animation: pulse-red 2s infinite;
         }
-        
+
         .risk-area.solved {
-            background-color: rgba(76, 175, 80, 0.5);
-            border: 3px solid var(--color-success);
             opacity: 0;
             pointer-events: none;
+            transition: opacity 0.5s;
         }
 
-        .risk-area .tooltip {
-            visibility: hidden;
-            width: 200px;
-            background-color: var(--color-primary);
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 5px 10px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -100px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .risk-area:hover .tooltip, .risk-area:focus-visible .tooltip {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 0, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 10px 20px rgba(255, 255, 0, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 0, 0); }
-        }
-
-        .emergency-risk.detected {
-             animation: emergency-pulse 1s infinite;
-        }
-
-        @keyframes emergency-pulse {
-            0%, 100% { background-color: rgba(255, 0, 0, 0.4); border-color: var(--color-error); }
-            50% { background-color: rgba(255, 100, 0, 0.6); border-color: #ff6600; }
+        /* Highlight visual al arrastrar algo encima */
+        .risk-area.droppable-highlight::after {
+            background-color: rgba(0, 255, 255, 0.3);
+            border: 2px solid var(--color-accent);
+            animation: pulse-blue 1s infinite;
         }
 
         /* --- Kit de Agente --- */
@@ -221,342 +174,645 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            background-color: rgba(13, 18, 43, 0.95);
-            border-top: 2px solid var(--color-accent);
-            padding: 15px;
+            height: var(--kit-height);
+            background: linear-gradient(to top, #0d122b, #1a233b);
+            border-top: 3px solid var(--color-accent);
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 20px;
-            transform: translateY(100%);
-            transition: transform 0.5s ease-in-out;
-            z-index: 20;
+            transform: translateY(110%); /* Oculto inicialmente */
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 30;
+            padding-bottom: 10px; /* Safe area for mobiles */
         }
 
-        #agent-kit.visible {
-            transform: translateY(0);
-        }
+        #agent-kit.visible { transform: translateY(0); }
 
         .tool {
-            font-size: 48px;
-            padding: 10px;
-            background-color: #2a3858;
+            width: 80px;
+            height: 80px;
+            background: #2a3858;
             border: 2px solid var(--color-accent);
-            border-radius: 10px;
-            cursor: grab;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-
-        .tool:hover, .tool:focus-visible {
-            background-color: var(--color-accent);
-            color: var(--color-primary);
-            transform: scale(1.1);
-            outline: none;
-        }
-
-        .tool.dragging {
-            opacity: 0.5;
-            cursor: grabbing;
-        }
-        
-        .tool.used {
-            opacity: 0.3;
-            cursor: not-allowed;
-            filter: grayscale(1);
-        }
-
-        .tool .tooltip {
-            font-size: 16px;
-            visibility: hidden;
-            width: 150px;
-            background-color: var(--color-primary);
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 5px;
-            position: absolute;
-            z-index: 1;
-            bottom: 110%;
-            left: 50%;
-            margin-left: -75px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-        
-        .tool:hover .tooltip, .tool:focus-visible .tooltip {
-            visibility: visible;
-            opacity: 1;
-        }
-        
-        /* --- Feedback y Mensajes --- */
-        #feedback-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
+            border-radius: 12px;
+            display: flex;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0,0,0,0.7);
-            z-index: 100;
+            font-size: 3rem;
+            cursor: grab;
+            position: relative;
+            touch-action: none; /* Crucial para drag manual en touch */
+            transition: transform 0.2s;
         }
 
-        #feedback-box {
-            background-color: var(--color-primary);
-            padding: 40px;
-            border: 3px solid var(--color-accent);
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 0 20px var(--color-accent);
-            animation: fadeIn 0.5s;
-        }
+        .tool:active { cursor: grabbing; transform: scale(1.1); }
+        .tool.used { opacity: 0.4; filter: grayscale(1); pointer-events: none; border-color: #555; }
         
-        #feedback-box.success { border-color: var(--color-success); }
-        #feedback-box.error { border-color: var(--color-error); }
-        #feedback-box.emergency { border-color: red; animation: emergency-flash 1s infinite alternate; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
-        @keyframes emergency-flash { from { box-shadow: 0 0 20px red; } to { box-shadow: 0 0 40px orange; } }
-
-        #subtitle-bar {
+        .tool-label {
             position: absolute;
-            bottom: 10px;
-            width: 80%;
-            max-width: 900px;
-            background-color: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 20px;
+            bottom: -25px;
+            font-size: 0.8rem;
+            width: 120px;
             text-align: center;
-            z-index: 50;
+            background: rgba(0,0,0,0.8);
+            padding: 2px 5px;
+            border-radius: 4px;
+            pointer-events: none;
             opacity: 0;
             transition: opacity 0.3s;
-            pointer-events: none;
+        }
+        .tool:hover .tool-label { opacity: 1; }
+
+        /* Clone que sigue al cursor/dedo */
+        .drag-clone {
+            position: fixed;
+            width: 80px; height: 80px;
+            background: rgba(0, 255, 255, 0.2);
+            border: 2px dashed var(--color-accent);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            pointer-events: none; /* Click through */
+            z-index: 1000;
+            transform: translate(-50%, -50%);
         }
 
-        #subtitle-bar.visible {
-            opacity: 1;
+        /* --- Modales y Overlays --- */
+        .modal-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
         }
         
-        #zoom-hint {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 16px;
-            z-index: 15;
-            display: none;
-            animation: fadeInOut 4s ease-in-out;
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        .modal-box {
+            background: var(--color-primary);
+            border: 2px solid var(--color-accent);
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            animation: popIn 0.4s;
         }
 
-        @keyframes fadeInOut {
-            0%, 100% { opacity: 0; }
-            10%, 80% { opacity: 1; }
+        .highlight-text { color: var(--color-warning); font-weight: bold; font-size: 1.3rem; display: block; margin: 15px 0; }
+
+        @keyframes pulse-red { 0% { opacity: 0.5; } 50% { opacity: 1; border-color: red; } 100% { opacity: 0.5; } }
+        @keyframes pulse-blue { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* Barra de subtítulos/Narración */
+        #subtitle-bar {
+            position: absolute;
+            bottom: 150px; /* Encima del kit */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.1rem;
+            color: #fff;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 25;
         }
+        #subtitle-bar.visible { opacity: 1; }
+        
+        /* Ajuste para móvil: mover barra de subtítulos si el kit no está */
+        body:not(.kit-active) #subtitle-bar { bottom: 20px; }
+
     </style>
 </head>
 <body>
-    <main id="game-container">
-        <div id="intro-screen" class="screen active">
-            <h1>Agente de Seguridad Tech</h1>
-            <h2>Misión: Prevención</h2>
-            <p id="briefing-text">Pulsa para recibir tu misión.</p>
-            <button id="start-briefing-btn">COMENZAR BRIEFING</button>
-            <button id="start-mission-btn" style="display:none;">INICIAR MISIÓN</button>
-        </div>
-        <div id="game-screen" class="screen">
-            <div id="game-ui-top">
-                <div id="level-name"></div>
-                <div id="risk-counter">Riesgos detectados: 0/0</div>
-                <div id="error-display">
-                    <span>♥</span><span>♥</span><span>♥</span>
-                </div>
+
+    <!-- PANTALLA DE INICIO -->
+    <div id="intro-screen" class="screen active">
+        <h1>AGENTE DE SEGURIDAD TECH</h1>
+        <h2>MISIÓN: PREVENCIÓN</h2>
+        <div style="font-size: 50px; margin: 20px;">🛡️⚡📱</div>
+        <p>Bienvenido a la división de élite. Tu trabajo es identificar peligros tecnológicos y neutralizarlos antes de que ocurra un accidente.</p>
+        <button id="btn-briefing">RECIBIR BRIEFING</button>
+    </div>
+
+    <!-- PANTALLA DE JUEGO -->
+    <div id="game-screen" class="screen">
+        <!-- Barra Superior -->
+        <div id="game-ui-top">
+            <div id="level-info">NIVEL 1</div>
+            <div id="stats-panel">
+                <span id="risk-text">RIESGOS: 0/3</span>
+                <span>
+                    <i class="heart">♥</i>
+                    <i class="heart">♥</i>
+                    <i class="heart">♥</i>
+                </span>
             </div>
-            <div id="scene-container">
-                <div id="zoom-hint">¡Escena grande! 🔎 Arrastra para explorar.</div>
-                <div id="scene"></div>
-            </div>
-            <div id="agent-kit"></div>
         </div>
-        <div id="end-screen" class="screen">
-            <h2 id="end-title"></h2>
-            <p id="end-message"></p>
-            <p id="end-stats"></p>
-            <button id="next-action-btn"></button>
+
+        <!-- Escenario -->
+        <div id="scene-container">
+            <div id="scene"></div>
+            <!-- Los riesgos se inyectan aquí via JS -->
         </div>
-    </main>
-    <div id="subtitle-bar"></div>
-    <div id="feedback-overlay">
-        <div id="feedback-box">
-            <h2 id="feedback-title"></h2>
-            <p id="feedback-text"></p>
+
+        <!-- Subtítulos -->
+        <div id="subtitle-bar"></div>
+
+        <!-- Kit de Herramientas -->
+        <div id="agent-kit">
+            <!-- Las herramientas se inyectan aquí via JS -->
+        </div>
+    </div>
+
+    <!-- PANTALLA FINAL -->
+    <div id="end-screen" class="screen">
+        <h1 id="end-title">MISIÓN CUMPLIDA</h1>
+        <p id="end-msg">Excelente trabajo.</p>
+        <button id="btn-next">SIGUIENTE MISIÓN</button>
+    </div>
+
+    <!-- MODAL DE INSTRUCCIONES (Overlay) -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-box">
+            <h2 id="modal-title">ATENCIÓN AGENTE</h2>
+            <p id="modal-text">Instrucción...</p>
+            <button id="modal-btn">ENTENDIDO</button>
         </div>
     </div>
 
     <!-- ============================================= -->
-    <!-- JAVASCRIPT EMBEBIDO - LÓGICA DEL JUEGO        -->
+    <!-- LÓGICA JAVASCRIPT                           -->
     <!-- ============================================= -->
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const gameState = {
-            currentLevel: 0, phase: 'detection', detectedRisks: [], solvedRisks: [],
-            errors: 0, maxErrors: 3, totalRisksNeutralized: 0, totalAlertsActivated: 0,
-        };
-        const dom = {
-            introScreen: document.getElementById('intro-screen'), briefingText: document.getElementById('briefing-text'),
-            startBriefingBtn: document.getElementById('start-briefing-btn'), // NUEVO
-            startBtn: document.getElementById('start-mission-btn'), gameScreen: document.getElementById('game-screen'),
-            levelName: document.getElementById('level-name'), riskCounter: document.getElementById('risk-counter'),
-            errorDisplay: document.getElementById('error-display'), sceneContainer: document.getElementById('scene-container'),
-            scene: document.getElementById('scene'), agentKit: document.getElementById('agent-kit'),
-            endScreen: document.getElementById('end-screen'), endTitle: document.getElementById('end-title'),
-            endMessage: document.getElementById('end-message'), endStats: document.getElementById('end-stats'),
-            nextActionBtn: document.getElementById('next-action-btn'), subtitleBar: document.getElementById('subtitle-bar'),
-            feedbackOverlay: document.getElementById('feedback-overlay'), feedbackBox: document.getElementById('feedback-box'),
-            feedbackTitle: document.getElementById('feedback-title'), feedbackText: document.getElementById('feedback-text'),
-            zoomHint: document.getElementById('zoom-hint'),
-        };
-        const synth = window.speechSynthesis;
-        let audioContext;
-        let isAudioInitialized = false;
-        
-        // =============================================
-        // IMÁGENES EMBEBIDAS (Data URLs de SVGs)
-        // =============================================
+        // --- CONFIGURACIÓN Y ASSETS ---
         const imageAssets = {
-            background_bedroom: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="grad_wall" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#B0E0E6;stop-opacity:1" /><stop offset="100%" style="stop-color:#ADD8E6;stop-opacity:1" /></linearGradient></defs><rect width="800" height="600" fill="url(%23grad_wall)"/><rect y="450" width="800" height="150" fill="#D2B48C"/><rect y="445" width="800" height="10" fill="#8B4513"/><rect x="550" y="150" width="200" height="150" fill="#87CEFA" stroke="#FFF" stroke-width="10"/><line x1="650" y1="150" x2="650" y2="300" stroke="#FFF" stroke-width="5"/><line x1="550" y1="225" x2="750" y2="225" stroke="#FFF" stroke-width="5"/></svg>')}`,
-            background_kitchen: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="patt_tiles" patternUnits="userSpaceOnUse" width="50" height="50"><rect width="50" height="50" fill="#F5F5DC"/><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#D3D3D3" stroke-width="1"/></pattern></defs><rect width="800" height="600" fill="#E6E6FA"/><rect width="800" height="400" fill="url(%23patt_tiles)"/><rect y="398" width="800" height="10" fill="#A9A9A9"/><rect x="50" y="100" width="300" height="150" fill="#F0E68C" stroke="#BDB76B" stroke-width="3"/><rect x="370" y="100" width="300" height="150" fill="#F0E68C" stroke="#BDB76B" stroke-width="3"/></svg>')}`,
-            background_classroom: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="600" fill="#FFF8DC"/><rect y="500" width="800" height="100" fill="#B0C4DE"/><rect x="100" y="50" width="600" height="350" fill="#006400" stroke="#8B4513" stroke-width="15" rx="10"/><rect x="720" y="80" width="150" height="200" fill="#DEB887" stroke="#8B4513" stroke-width="5" transform="rotate(5 720 80)"/></svg>')}`,
-            bed: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="20" width="96" height="38" rx="5" fill="#87CEEB" stroke="#5F9EA0" stroke-width="2"/><rect x="10" y="15" width="30" height="15" rx="5" fill="white" stroke="#B0C4DE" stroke-width="2"/><rect x="5" y="58" width="10" height="5" fill="#654321"/><rect x="85" y="58" width="10" height="5" fill="#654321"/></svg>')}`,
-            desk: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><path d="M 5 20 L 95 20 L 90 75 L 10 75 Z" fill="#D2B48C" stroke="#8B4513" stroke-width="2"/><rect x="5" y="15" width="90" height="10" rx="3" fill="#A0522D" stroke="#8B4513" stroke-width="2"/></svg>')}`,
-            laptop: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="10" width="90" height="50" rx="5" fill="#B0C4DE"/><rect x="10" y="15" width="80" height="35" fill="#2F4F4F"/><rect x="0" y="58" width="100" height="7" rx="2" fill="#778899"/></svg>')}`,
-            juice_glass: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 50 70" xmlns="http://www.w3.org/2000/svg"><path d="M 5 0 L 45 0 L 40 68 L 10 68 Z" fill="rgba(255,255,255,0.3)" stroke="#aaa" stroke-width="1"/><rect x="12" y="10" width="26" height="56" fill="#FFA500"/></svg>')}`,
-            phone: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 50 100" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="46" height="96" rx="10" fill="#333" stroke="#111" stroke-width="2"/><rect x="7" y="10" width="36" height="60" fill="#1E90FF"/><circle cx="25" cy="85" r="5" fill="#555"/></svg>')}`,
-            tablet: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="96" height="66" rx="8" fill="#333" stroke="#111" stroke-width="2"/><rect x="8" y="8" width="84" height="54" fill="#1E90FF"/></svg>')}`,
-            kitchen_counter: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 200 50" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="50" fill="#E6E6FA"/><rect y="40" width="200" height="10" fill="#C0C0C0"/><rect y="0" width="200" height="10" fill="#D3D3D3"/></svg>')}`,
-            sink: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="90" height="40" rx="5" fill="#B0C4DE"/><rect x="10" y="10" width="80" height="30" fill="#F0F8FF"/><circle cx="75" cy="25" r="5" fill="#778899"/><path d="M 50 0 V 20" stroke="#778899" stroke-width="4"/></svg>')}`,
-            damaged_cable: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 200 20" xmlns="http://www.w3.org/2000/svg"><path d="M 5 10 C 50 0, 100 20, 150 10 L 195 10" stroke="#555" stroke-width="4" fill="none" stroke-dasharray="8 4"/><path d="M 90 2 L 100 18 L 110 2" stroke="yellow" stroke-width="3" fill="none" stroke-linejoin="round"/></svg>')}`,
-            charging_cart: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="90" height="140" rx="10" fill="#708090" stroke="#2F4F4F" stroke-width="3"/><rect x="15" y="20" width="70" height="10" fill="#B0C4DE"/><rect x="15" y="40" width="70" height="10" fill="#B0C4DE"/><rect x="15" y="60" width="70" height="10" fill="#B0C4DE"/><rect x="15" y="80" width="70" height="10" fill="#B0C4DE"/><circle cx="20" cy="135" r="8" fill="#333"/><circle cx="80" cy="135" r="8" fill="#333"/></svg>')}`,
-            jacket: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><path d="M 20 10 C 10 30, 15 70, 30 70 L 70 70 C 85 70, 90 30, 80 10 Q 50 -10, 20 10 Z" fill="#2E8B57" stroke="#006400" stroke-width="2"/><path d="M 50 10 V 65" stroke="#000" stroke-width="3" stroke-dasharray="5 5"/></svg>')}`,
-            power_strip: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 150 40" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="146" height="36" rx="5" fill="#F5F5F5" stroke="#B0B0B0" stroke-width="2"/><circle cx="25" cy="20" r="8" stroke="#808080" fill="white"/><circle cx="55" cy="20" r="8" stroke="#808080" fill="white"/><circle cx="85" cy="20" r="8" stroke="#808080" fill="white"/><circle cx="115" cy="20" r="8" stroke="#808080" fill="white"/></svg>')}`,
+            // Usamos SVG Data URI para no depender de archivos externos
+            bg_room: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#B0C4DE"/><rect y="450" width="800" height="150" fill="#8B4513"/><rect x="100" y="100" width="200" height="150" fill="#87CEFA" stroke="white" stroke-width="10"/><line x1="200" y1="100" x2="200" y2="250" stroke="white" stroke-width="5"/><line x1="100" y1="175" x2="300" y2="175" stroke="white" stroke-width="5"/></svg>')}`,
+            bg_kitchen: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#FFFACD"/><rect width="800" height="300" fill="#F0E68C" opacity="0.3"/><rect y="400" width="800" height="200" fill="#DEB887"/><rect x="400" y="380" width="300" height="100" fill="#C0C0C0" stroke="#888" stroke-width="5"/></svg>')}`,
+            bg_class: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#E0FFFF"/><rect y="500" width="800" height="100" fill="#778899"/><rect x="50" y="50" width="400" height="250" fill="#2E8B57" stroke="#8B4513" stroke-width="10"/></svg>')}`,
+            // Objetos (Simplificados visualmente)
+            bed: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="20" width="100" height="40" rx="5" fill="#4682B4"/><rect x="10" y="10" width="30" height="20" rx="3" fill="#FFF"/></svg>')}`,
+            desk: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg"><path d="M5 20 L95 20 L90 80 L10 80 Z" fill="#D2691E"/></svg>')}`,
+            laptop: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="50" height="30" fill="#333"/><rect x="0" y="35" width="60" height="5" fill="#666"/></svg>')}`,
+            juice: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 30 50" xmlns="http://www.w3.org/2000/svg"><path d="M5 0 L25 0 L20 50 L10 50 Z" fill="orange" opacity="0.8"/></svg>')}`,
+            phone: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 30 50" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="26" height="46" rx="3" fill="#111"/><rect x="5" y="5" width="20" height="35" fill="#4169E1"/></svg>')}`,
+            tablet: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg viewBox="0 0 50 35" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="50" height="35" rx="3" fill="#222"/><rect x="3" y="3" width="44" height="29" fill="#87CEEB"/></svg>')}`
         };
-        // =============================================
-        // DATOS DE NIVELES, RIESGOS Y SOLUCIONES
-        // =============================================
+
         const levels = [
             {
-                name: "Nivel 1: El Cuarto (Entrenamiento)", background: imageAssets.background_bedroom, sceneBuilder: buildBedroomScene,
+                id: 1,
+                name: "El Cuarto",
+                introText: "Instrucción de Misión: ¿Qué errores y peligros en aparatos tecnológicos puedes identificar en esta habitación? ¡Toca los riesgos para marcarlos!",
+                bg: imageAssets.bg_room,
                 risks: [
-                    { id: 'r1-1', x: 28, y: 55, w: 20, h: 10, tipo: 'sobrecarga', descripcion: 'Tablet cargando bajo la almohada. ¡Peligro de sobrecalentamiento!', solucion_id: 's1-1' },
-                    { id: 'r1-2', x: 65, y: 65, w: 8, h: 12, tipo: 'liquidos', descripcion: 'Vaso de jugo muy cerca de la laptop. ¡Riesgo de derrame!', solucion_id: 's1-2' },
-                    { id: 'r1-3', x: 45, y: 85, w: 7, h: 14, tipo: 'golpe', descripcion: 'Celular en el suelo en una zona de paso. ¡Alguien podría pisarlo!', solucion_id: 's1-3' },
+                    // NOTA: Ajusté las coordenadas Y para evitar que el Kit cubra los objetos (Max Y recomendada: 75%)
+                    { id: 'r1', type: 'overheat', x: 25, y: 53, w: 20, h: 15, asset: imageAssets.tablet, desc: "Tablet bajo almohada", hint: "¡Se está calentando bajo la almohada!", solutionId: 'fan' },
+                    { id: 'r2', type: 'liquid', x: 62, y: 62, w: 10, h: 15, asset: imageAssets.juice, desc: "Jugo cerca de Laptop", hint: "¡Líquido peligroso!", solutionId: 'hand' },
+                    { id: 'r3', type: 'damage', x: 45, y: 72, w: 8, h: 14, asset: imageAssets.phone, desc: "Celular en el suelo", hint: "¡Alguien lo va a pisar!", solutionId: 'shield' }
                 ],
-                solutions: [
-                    { id: 's1-1', icono: '🌬️', nombre: 'Ventilar Dispositivo', protocolo: 'sobrecarga', texto_feedback: '¡Un dispositivo que respira, es uno que no conspira!' },
-                    { id: 's1-2', icono: '💧', nombre: 'Alejar Líquido', protocolo: 'liquidos', texto_feedback: '¡Lejos del peligro, me siento más seguro!' },
-                    { id: 's1-3', icono: '🛡️', nombre: 'Proteger/Recoger', protocolo: 'golpe', texto_feedback: '¡Dispositivo a salvo de golpes y caídas!' },
+                tools: [
+                    { id: 'fan', icon: '🌬️', label: 'Ventilar', feedback: '¡Bien! Los dispositivos necesitan respirar.' },
+                    { id: 'hand', icon: '✋', label: 'Alejar', feedback: '¡Excelente! Líquidos lejos de la tech.' },
+                    { id: 'shield', icon: '🛡️', label: 'Proteger', feedback: '¡Seguro! Recogido y protegido.' }
                 ]
             },
             {
-                name: "Nivel 2: La Cocina", background: imageAssets.background_kitchen, sceneBuilder: buildKitchenScene,
+                id: 2,
+                name: "La Cocina",
+                introText: "Instrucción de Misión: Busca peligros de agua, calor y electricidad en la cocina. ¡Sé minucioso!",
+                bg: imageAssets.bg_kitchen,
                 risks: [
-                    { id: 'r2-1', x: 15, y: 60, w: 30, h: 5, tipo: 'cable_dañado', descripcion: '¡Cable dañado! Puede causar un cortocircuito o una descarga.', solucion_id: 's2-1' },
-                    { id: 'r2-2', x: 75, y: 50, w: 15, h: 10, tipo: 'liquidos', descripcion: 'Tablet demasiado cerca del fregadero. ¡Cuidado con las salpicaduras!', solucion_id: 's2-2' },
-                    { id: 'r2-3', x: 45, y: 55, w: 8, h: 15, tipo: 'sobrecarga_uso', descripcion: 'Se siente muy caliente al usarlo mientras carga. ¡Necesita un descanso!', solucion_id: 's2-3' },
+                    { id: 'r4', type: 'cable', x: 15, y: 65, w: 25, h: 10, asset: null, desc: "Cable pelado (invisible)", hint: "Cable en mal estado", solutionId: 'unplug' }, // Area invisible sobre el fondo
+                    { id: 'r5', type: 'liquid', x: 60, y: 55, w: 15, h: 15, asset: imageAssets.tablet, desc: "Tablet cerca fregadero", hint: "¡Agua cerca!", solutionId: 'shield_water' },
+                    { id: 'r6', type: 'usage', x: 40, y: 50, w: 10, h: 15, asset: imageAssets.phone, desc: "Usando cargando", hint: "¡Se calienta por uso excesivo!", solutionId: 'pause' }
                 ],
-                solutions: [
-                    { id: 's2-1', icono: '🔌', nombre: 'Desconectar Cable', protocolo: 'cable_dañado', texto_feedback: '¡Cable peligroso desconectado! Seguridad ante todo.' },
-                    { id: 's2-2', icono: '💧🛡️', nombre: 'Alejar de Agua', protocolo: 'liquidos', texto_feedback: '¡Zona segura libre de líquidos!' },
-                    { id: 's2-3', icono: '⏸️', nombre: 'Pausa y Descanso', protocolo: 'sobrecarga_uso', texto_feedback: '¡Dejarlo descansar evita que se sobrecaliente!' },
-                ]
-            },
-            {
-                name: "Nivel 3: Salón de Clases", background: imageAssets.background_classroom, sceneBuilder: buildClassroomScene, zoomable: true,
-                risks: [
-                    { id: 'r3-1', x: 75, y: 30, w: 20, h: 15, tipo: 'sobrecarga', descripcion: 'Carrito de tablets cubierto, ¡los dispositivos no pueden ventilar!', solucion_id: 's3-1' },
-                    { id: 'r3-2', x: 18, y: 58, w: 12, h: 8, tipo: 'golpe', descripcion: 'Tablet al borde del pupitre, ¡lista para caerse!', solucion_id: 's3-2' },
-                    { id: 'r3-3', x: 45, y: 88, w: 15, h: 5, tipo: 'sobrecarga_electrica', descripcion: 'Demasiados enchufes en un solo lugar. ¡Riesgo de sobrecarga eléctrica!', solucion_id: 's3-3' },
-                    { id: 'r3-4', x: 80, y: 50, w: 10, h: 6, tipo: 'emergencia_roja', descripcion: '¡ALERTA! Tablet hinchada y echando humo. ¡NO TOCAR!', solucion_id: 's3-4' },
-                ],
-                solutions: [
-                    { id: 's3-1', icono: '🧥', nombre: 'Retirar Cubierta', protocolo: 'sobrecarga', texto_feedback: '¡Ahora sí pueden respirar! Bien hecho.' },
-                    { id: 's3-2', icono: '✋', nombre: 'Reacomodar Tablet', protocolo: 'golpe', texto_feedback: '¡Bien posicionado, bien protegido!' },
-                    { id: 's3-3', icono: '⚡🔌', nombre: 'Desconectar Regleta', protocolo: 'sobrecarga_electrica', texto_feedback: '¡Sobrecarga evitada! Mejor usar varios enchufes.' },
-                    { id: 's3-4', icono: '🚨', nombre: 'Alerta Nivel 5', protocolo: 'emergencia_roja', texto_feedback: '¡Protocolo Rojo activado! ¡Has protegido a todos!' },
+                tools: [
+                    { id: 'unplug', icon: '🔌', label: 'Desconectar', feedback: 'Cable dañado retirado. ¡Seguridad primero!' },
+                    { id: 'shield_water', icon: '💧🚫', label: 'Zona Seca', feedback: '¡Perfecto! Electrónica y agua no se mezclan.' },
+                    { id: 'pause', icon: '⏸️', label: 'Descanso', feedback: 'Bien hecho. Si se calienta, déjalo descansar.' }
                 ]
             }
         ];
-        // =============================================
-        // FUNCIONES DE AUDIO Y VOZ
-        // =============================================
-        function initializeAudio() {
-            if (isAudioInitialized) return;
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                // Solución para Safari/iOS: resumir el contexto de audio en una interacción del usuario.
-                if (audioContext.state === 'suspended') {
-                    audioContext.resume();
-                }
-                isAudioInitialized = true;
-            } catch(e) {
-                console.warn("Web Audio API no es soportada en este navegador.");
+
+        // --- ESTADO DEL JUEGO ---
+        let state = {
+            levelIdx: 0,
+            phase: 'detection', // 'detection' | 'solution'
+            detected: [],
+            solved: [],
+            lives: 3,
+            isDragging: false
+        };
+
+        const synth = window.speechSynthesis;
+
+        // --- DOM ELEMENTS ---
+        const ui = {
+            screens: document.querySelectorAll('.screen'),
+            intro: document.getElementById('intro-screen'),
+            game: document.getElementById('game-screen'),
+            end: document.getElementById('end-screen'),
+            scene: document.getElementById('scene'),
+            kit: document.getElementById('agent-kit'),
+            modal: {
+                overlay: document.getElementById('modal-overlay'),
+                title: document.getElementById('modal-title'),
+                text: document.getElementById('modal-text'),
+                btn: document.getElementById('modal-btn')
+            },
+            stats: {
+                riskText: document.getElementById('risk-text'),
+                hearts: document.querySelectorAll('.heart'),
+                levelName: document.getElementById('level-info')
+            },
+            subtitle: document.getElementById('subtitle-bar')
+        };
+
+        // --- INICIALIZACIÓN ---
+        document.getElementById('btn-briefing').onclick = () => {
+            speak("Agente, iniciando sistema de entrenamiento.");
+            startGame();
+        };
+        
+        document.getElementById('btn-next').onclick = () => {
+            if (state.levelIdx < levels.length - 1) {
+                state.levelIdx++;
+                loadLevel(state.levelIdx);
+            } else {
+                location.reload(); // Reiniciar juego completo
             }
+        };
+
+        ui.modal.btn.onclick = closeModal;
+
+        function startGame() {
+            state.levelIdx = 0;
+            state.lives = 3;
+            loadLevel(0);
         }
-        function playSound(type) { if (!isAudioInitialized) return; const o=audioContext.createOscillator(),g=audioContext.createGain();o.connect(g);g.connect(audioContext.destination);g.gain.setValueAtTime(0.1,audioContext.currentTime);switch(type){case 'detect':o.type='sine';o.frequency.setValueAtTime(880,audioContext.currentTime);break;case 'success':o.type='triangle';o.frequency.setValueAtTime(523.25,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(1e-5,audioContext.currentTime+.5);break;case 'error':o.type='square';o.frequency.setValueAtTime(150,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(1e-5,audioContext.currentTime+.5);break;case 'alert':o.type='sawtooth';o.frequency.setValueAtTime(900,audioContext.currentTime);o.frequency.linearRampToValueAtTime(700,audioContext.currentTime+.5);g.gain.exponentialRampToValueAtTime(1e-5,audioContext.currentTime+1);break;}o.start();o.stop(audioContext.currentTime+.3);}
-        function speak(text, callback) { if(synth.speaking){synth.cancel();}const u=new SpeechSynthesisUtterance(text);u.lang='es-ES';u.pitch=1.1;u.rate=1;dom.subtitleBar.textContent=text;dom.subtitleBar.classList.add('visible');u.onend=()=>{dom.subtitleBar.classList.remove('visible');if(callback)callback();};synth.speak(u);}
 
-        // =============================================
-        // CONSTRUCTORES DE ESCENAS (con imágenes)
-        // =============================================
-        function buildBedroomScene(){dom.scene.innerHTML=`<img src="${imageAssets.desk}" alt="Escritorio" class="scene-element" style="left:55%;top:60%;width:35%;height:30%;z-index:2;"><img src="${imageAssets.bed}" alt="Cama con almohada" class="scene-element" style="left:20%;top:50%;width:40%;height:40%;z-index:2;"><img src="${imageAssets.laptop}" alt="Laptop sobre el escritorio" class="scene-element" style="left:60%;top:50%;width:20%;height:15%;z-index:3;"><img src="${imageAssets.juice_glass}" alt="Vaso de jugo" class="scene-element" style="left:65%;top:65%;width:8%;height:12%;z-index:3;"><img src="${imageAssets.phone}" alt="Teléfono en el suelo" class="scene-element" style="left:45%;top:85%;width:7%;height:14%;z-index:3;">`;}
-        function buildKitchenScene(){dom.scene.innerHTML=`<img src="${imageAssets.kitchen_counter}" alt="Encimera de cocina" class="scene-element" style="left:0;top:70%;width:100%;height:30%;z-index:1;"><img src="${imageAssets.sink}" alt="Fregadero" class="scene-element" style="left:60%;top:60%;width:25%;height:15%;z-index:2;"><img src="${imageAssets.phone}" alt="Teléfono calentándose" class="scene-element" style="left:45%;top:55%;width:8%;height:15%;filter:drop-shadow(0 0 10px rgba(255,100,0,0.8));z-index:3;"><img src="${imageAssets.tablet}" alt="Tablet" class="scene-element" style="left:75%;top:50%;width:15%;height:10%;z-index:3;"><img src="${imageAssets.damaged_cable}" alt="Cable dañado" class="scene-element" style="left:15%;top:62%;width:30%;height:5%;z-index:3;">`;}
-        function buildClassroomScene(){dom.scene.innerHTML=`<img src="${imageAssets.desk}" alt="Pupitre" class="scene-element" style="left:10%;top:60%;width:25%;height:20%;z-index:2;"><img src="${imageAssets.desk}" alt="Pupitre" class="scene-element" style="left:40%;top:50%;width:25%;height:20%;z-index:2;"><img src="${imageAssets.charging_cart}" alt="Carrito de carga de tablets" class="scene-element" style="left:70%;top:25%;width:25%;height:50%;z-index:2;"><img src="${imageAssets.jacket}" alt="Chamarra" class="scene-element" style="left:75%;top:30%;width:20%;height:15%;transform:rotate(-10deg);z-index:4;"><img src="${imageAssets.tablet}" alt="Tablet al borde del pupitre" class="scene-element" style="left:18%;top:58%;width:12%;height:8%;z-index:3;"><img src="${imageAssets.tablet}" alt="Tablet hinchada" class="scene-element" style="left:80%;top:50%;width:10%;height:6%;filter:drop-shadow(0 0 8px red);z-index:3;" id="emergency-device"><img src="${imageAssets.power_strip}" alt="Regleta de enchufes" class="scene-element" style="left:45%;top:88%;width:15%;height:5%;z-index:3;">`;}
+        function switchScreen(id) {
+            ui.screens.forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
 
-        // =============================================
-        // LÓGICA PRINCIPAL DEL JUEGO
-        // =============================================
-        function init() {
-            dom.startBtn.addEventListener('click', startMission);
-            dom.startBriefingBtn.addEventListener('click', () => {
-                initializeAudio();
-                dom.startBriefingBtn.style.display = 'none';
-                dom.briefingText.textContent = "Cargando sistema...";
+        // --- MOTOR DEL NIVEL ---
+        function loadLevel(idx) {
+            const level = levels[idx];
+            state.phase = 'detection';
+            state.detected = [];
+            state.solved = [];
+            
+            // Reset UI
+            ui.scene.innerHTML = ''; // Limpiar escena previa
+            ui.kit.innerHTML = '';
+            ui.kit.classList.remove('visible');
+            document.body.classList.remove('kit-active');
+            
+            // Render Background & Objetos estáticos de contexto
+            ui.scene.style.backgroundImage = `url("${level.bg}")`;
+            renderDecor(idx);
+
+            // Render Riesgos
+            level.risks.forEach(risk => {
+                const el = document.createElement('div');
+                el.className = 'risk-area';
+                el.dataset.id = risk.id;
+                // Posicionamiento porcentual
+                el.style.left = risk.x + '%';
+                el.style.top = risk.y + '%';
+                el.style.width = risk.w + '%';
+                el.style.height = risk.h + '%';
                 
-                speak("¡Atención, Agente! Tu misión de hoy es analizar escenas en busca de riesgos tecnológicos. Encuentra los peligros y aplica el protocolo correcto para neutralizarlos. ¡Prepara tu equipo!", () => {
-                    dom.briefingText.innerHTML = "¡Atención, Agente! Hoy analizarás escenas de riesgo. Encuentra los peligros y aplica el protocolo correcto.";
-                    dom.startBtn.style.display = 'block';
-                });
+                // Si tiene imagen (asset), la ponemos dentro, si no, es área transparente
+                if(risk.asset) {
+                    const img = document.createElement('img');
+                    img.src = risk.asset;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'contain';
+                    img.draggable = false;
+                    el.appendChild(img);
+                }
+
+                // Evento Click (Fase Detección)
+                el.onclick = () => handleRiskClick(risk, el);
+                
+                ui.scene.appendChild(el);
+            });
+
+            updateStats();
+            switchScreen('game-screen');
+            ui.stats.levelName.textContent = level.name.toUpperCase();
+
+            // *** MEJORA: Instrucciones Claras ***
+            showModal("MISIÓN DE DETECCIÓN", level.introText, () => {
+                 speak(level.introText);
             });
         }
-        function startMission(){dom.introScreen.classList.remove('active');dom.gameScreen.classList.add('active');loadLevel(0);}
-        function switchScreen(screenToShow){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));screenToShow.classList.add('active');}
-        function loadLevel(levelIndex){gameState.currentLevel=levelIndex;gameState.phase='detection';gameState.detectedRisks=[];gameState.solvedRisks=[];gameState.errors=0;const level=levels[levelIndex];dom.levelName.textContent=level.name;updateRiskCounter();updateErrorDisplay();dom.agentKit.classList.remove('visible');dom.scene.style.backgroundImage=`url("${level.background}")`;dom.scene.innerHTML='';level.sceneBuilder();renderRisks();dom.zoomHint.style.display='none';if(level.zoomable){dom.sceneContainer.style.overflow='auto';dom.scene.style.width=dom.scene.style.height='150%';dom.zoomHint.style.display='block';}else{dom.sceneContainer.style.overflow='hidden';dom.scene.style.width=dom.scene.style.height='100%';}speak(`Iniciando ${level.name}. Fase de detección activada. ¡Abre bien los ojos, Agente!`);}
-        function renderRisks(){const level=levels[gameState.currentLevel];level.risks.forEach(risk=>{const riskEl=document.createElement('div');riskEl.className='risk-area';riskEl.id=risk.id;riskEl.style.left=`${risk.x}%`;riskEl.style.top=`${risk.y}%`;riskEl.style.width=`${risk.w}%`;riskEl.style.height=`${risk.h}%`;riskEl.setAttribute('data-risk-id',risk.id);riskEl.setAttribute('tabindex','0');riskEl.setAttribute('aria-label',`Posible riesgo: ${risk.descripcion}`);const tooltip=document.createElement('span');tooltip.className='tooltip';tooltip.textContent=risk.descripcion;riskEl.appendChild(tooltip);riskEl.addEventListener('click',handleRiskClick);riskEl.addEventListener('keydown',e=>{if(e.key==='Enter')handleRiskClick(e);});riskEl.addEventListener('dragover',e=>e.preventDefault());riskEl.addEventListener('drop',handleDrop);dom.scene.appendChild(riskEl);});}
-        function handleRiskClick(e){if(gameState.phase!=='detection')return;const riskId=e.currentTarget.dataset.riskId;if(gameState.detectedRisks.includes(riskId))return;gameState.detectedRisks.push(riskId);e.currentTarget.classList.add('detected');if(levels[gameState.currentLevel].risks.find(r=>r.id===riskId).tipo==='emergencia_roja'){e.currentTarget.classList.add('emergency-risk');}playSound('detect');speak("¡Peligro detectado, Agente!");updateRiskCounter();if(gameState.detectedRisks.length===levels[gameState.currentLevel].risks.length){startSolutionPhase();}}
-        function updateRiskCounter(){const totalRisks=levels[gameState.currentLevel].risks.length;dom.riskCounter.textContent=`Riesgos detectados: ${gameState.detectedRisks.length}/${totalRisks}`;}
-        function startSolutionPhase(){gameState.phase='solution';renderKit();dom.agentKit.classList.add('visible');speak("Todos los riesgos localizados. Kit de Agente desplegado. Procede a neutralizar las amenazas.");}
-        function renderKit(){dom.agentKit.innerHTML='';const level=levels[gameState.currentLevel];level.solutions.forEach(sol=>{const toolEl=document.createElement('div');toolEl.className='tool';toolEl.id=sol.id;toolEl.innerHTML=sol.icono;toolEl.draggable=true;toolEl.setAttribute('data-solution-id',sol.id);toolEl.setAttribute('tabindex','0');toolEl.setAttribute('aria-label',`Herramienta: ${sol.nombre}`);const tooltip=document.createElement('span');tooltip.className='tooltip';tooltip.textContent=sol.nombre;toolEl.appendChild(tooltip);toolEl.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',sol.id);toolEl.classList.add('dragging');});toolEl.addEventListener('dragend',()=>toolEl.classList.remove('dragging'));dom.agentKit.appendChild(toolEl);});}
-        function handleDrop(e){e.preventDefault();if(gameState.phase!=='solution')return;const solutionId=e.dataTransfer.getData('text/plain');const riskId=e.currentTarget.dataset.riskId;const riskEl=document.getElementById(riskId);if(gameState.solvedRisks.includes(riskId))return;const level=levels[gameState.currentLevel];const risk=level.risks.find(r=>r.id===riskId);const solution=level.solutions.find(s=>s.id===solutionId);if(risk.tipo==='emergencia_roja'&&solution.protocolo!=='emergencia_roja'){speak("¡Negativo, Agente! Ese riesgo es crítico. Activa la Alerta de Nivel 5 inmediatamente. NO te acerques.");handleIncorrectSolution();return;}if(risk.solucion_id===solution.id){handleCorrectSolution(riskEl,solution);}else{speak("Negativo, Agente. Revisa tus protocolos. Esa no es la herramienta correcta.");handleIncorrectSolution();}}
-        function handleCorrectSolution(riskEl,solution){gameState.solvedRisks.push(riskEl.id);riskEl.classList.add('solved');const toolEl=document.getElementById(solution.id);toolEl.classList.add('used');toolEl.draggable=false;gameState.totalRisksNeutralized++;if(solution.protocolo==='emergencia_roja'){gameState.totalAlertsActivated++;playSound('alert');}else{playSound('success');}showFeedback('success','¡Amenaza Neutralizada!',solution.texto_feedback);speak(`¡Gran trabajo de prevención! ${solution.texto_feedback}`);if(gameState.solvedRisks.length===levels[gameState.currentLevel].risks.length){setTimeout(completeLevel,2500);}}
-        function handleIncorrectSolution(){gameState.errors++;updateErrorDisplay();playSound('error');showFeedback('error','Protocolo Incorrecto',"Inténtalo de nuevo, Agente. ¡La seguridad depende de ti!");if(gameState.errors>=gameState.maxErrors){setTimeout(gameOver,2500);}}
-        function updateErrorDisplay(){const hearts=dom.errorDisplay.querySelectorAll('span');hearts.forEach((heart,index)=>{if(index<gameState.errors){heart.classList.add('used');}else{heart.classList.remove('used');}});}
-        function showFeedback(type,title,text){dom.feedbackTitle.textContent=title;dom.feedbackText.textContent=text;dom.feedbackBox.className=type;dom.feedbackOverlay.style.display='flex';setTimeout(()=>{dom.feedbackOverlay.style.display='none';},2000);}
-        function completeLevel(){switchScreen(dom.endScreen);const isLastLevel=gameState.currentLevel===levels.length-1;if(isLastLevel){dom.endTitle.textContent="¡Misión Maestra Completada!";dom.endMessage.textContent=`Has neutralizado ${gameState.totalRisksNeutralized} riesgos en ${levels.length} escenas y activaste ${gameState.totalAlertsActivated} Alerta de Nivel 5 a tiempo. ¡Eres un Agente de élite!`;dom.endStats.innerHTML=`🏅<br>Has ganado la Medalla al Honor Preventivo.`;dom.nextActionBtn.textContent="Jugar de Nuevo";dom.nextActionBtn.onclick=()=>location.reload();speak(dom.endTitle.textContent+" "+dom.endMessage.textContent);}else{dom.endTitle.textContent=`¡Nivel ${gameState.currentLevel+1} Superado!`;dom.endMessage.textContent="¡Excelente trabajo, Agente! Has asegurado la zona.";const levelRisks=levels[gameState.currentLevel].risks.length;dom.endStats.textContent=`Riesgos neutralizados: ${levelRisks}/${levelRisks}. Errores: ${gameState.errors}/${gameState.maxErrors}.`;dom.nextActionBtn.textContent=`Continuar a Nivel ${gameState.currentLevel+2}`;dom.nextActionBtn.onclick=()=>{switchScreen(dom.gameScreen);loadLevel(gameState.currentLevel+1);};speak(dom.endTitle.textContent+" ¡A la siguiente misión!");}}
-        function gameOver(){switchScreen(dom.endScreen);dom.endTitle.textContent="Misión Fallida";dom.endMessage.textContent="Demasiados errores en el protocolo, Agente. La seguridad ha sido comprometida. Es necesario reintentar la misión.";dom.endStats.textContent="Recuerda: la observación y la calma son tus mejores herramientas.";dom.nextActionBtn.textContent="Reintentar Nivel";dom.nextActionBtn.onclick=()=>{switchScreen(dom.gameScreen);loadLevel(gameState.currentLevel);};speak(dom.endTitle.textContent+". No te rindas, volvemos a intentarlo.");}
-        
-        // INICIO DEL JUEGO
-        init();
-    });
+
+        // Función auxiliar para decorar la habitación (contexto visual)
+        function renderDecor(idx) {
+            if(idx === 0) { // Cuarto
+                ui.scene.innerHTML += `<img src="${imageAssets.bed}" style="position:absolute; left:20%; top:50%; width:40%; z-index:1; pointer-events:none;">`;
+                ui.scene.innerHTML += `<img src="${imageAssets.desk}" style="position:absolute; left:60%; top:55%; width:30%; z-index:1; pointer-events:none;">`;
+                ui.scene.innerHTML += `<img src="${imageAssets.laptop}" style="position:absolute; left:65%; top:50%; width:20%; z-index:2; pointer-events:none;">`;
+            } else if (idx === 1) { // Cocina
+                 ui.scene.innerHTML += `<div style="position:absolute; left:15%; top:64%; width:30%; height:5px; background:red; transform:rotate(5deg); z-index:5; pointer-events:none;"></div>`; // Cable visual
+            }
+        }
+
+        // --- LÓGICA DE DETECCIÓN ---
+        function handleRiskClick(riskData, element) {
+            if (state.phase !== 'detection') return;
+            if (state.detected.includes(riskData.id)) return;
+
+            // Detección exitosa
+            state.detected.push(riskData.id);
+            element.classList.add('detected');
+            playSound('ping');
+            
+            updateStats();
+
+            // Chequear si completó fase
+            const totalRisks = levels[state.levelIdx].risks.length;
+            if (state.detected.length === totalRisks) {
+                setTimeout(initSolutionPhase, 1000);
+            }
+        }
+
+        // --- TRANSICIÓN A FASE 2 ---
+        function initSolutionPhase() {
+            state.phase = 'solution';
+            
+            // *** MEJORA: Instrucción Intermedia Clara ***
+            showModal("¡PELIGROS IDENTIFICADOS!", 
+                "Excelente observación, Agente. Ahora abre tu kit de herramientas, ARRASTRA y SUELTA la solución correcta sobre cada peligro para neutralizarlo.", 
+                () => {
+                    renderKit();
+                    ui.kit.classList.add('visible');
+                    document.body.classList.add('kit-active');
+                    speak("Kit de agente desplegado. Neutraliza las amenazas.");
+                }
+            );
+        }
+
+        function renderKit() {
+            const level = levels[state.levelIdx];
+            level.tools.forEach(tool => {
+                const el = document.createElement('div');
+                el.className = 'tool';
+                el.dataset.id = tool.id;
+                el.innerHTML = `
+                    ${tool.icon}
+                    <span class="tool-label">${tool.label}</span>
+                `;
+                
+                // Lógica Custom de Drag & Drop (Mouse + Touch)
+                setupDragEvents(el, tool);
+                
+                ui.kit.appendChild(el);
+            });
+        }
+
+        // --- LÓGICA DRAG & DROP (MEJORADA PARA MÓVIL Y BUG FIX) ---
+        function setupDragEvents(toolElement, toolData) {
+            
+            const handleStart = (e) => {
+                if(toolElement.classList.contains('used')) return;
+                e.preventDefault(); // Evita scroll en móvil
+                
+                // Obtener coordenadas (Touch o Mouse)
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                // Crear clon visual
+                const clone = document.createElement('div');
+                clone.className = 'drag-clone';
+                clone.innerHTML = toolData.icon;
+                clone.style.left = clientX + 'px';
+                clone.style.top = clientY + 'px';
+                clone.id = 'current-drag';
+                document.body.appendChild(clone);
+
+                state.isDragging = true;
+
+                // Listeners globales para mover y soltar
+                const moveHandler = (em) => handleMove(em, clone);
+                const endHandler = (ee) => handleEnd(ee, toolElement, toolData, moveHandler, endHandler);
+
+                document.addEventListener('mousemove', moveHandler);
+                document.addEventListener('touchmove', moveHandler, {passive: false});
+                document.addEventListener('mouseup', endHandler);
+                document.addEventListener('touchend', endHandler);
+            };
+
+            toolElement.addEventListener('mousedown', handleStart);
+            toolElement.addEventListener('touchstart', handleStart, {passive: false});
+        }
+
+        function handleMove(e, clone) {
+            e.preventDefault();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            clone.style.left = clientX + 'px';
+            clone.style.top = clientY + 'px';
+
+            // Highlight de zonas droppeables
+            checkHover(clientX, clientY);
+        }
+
+        function handleEnd(e, toolElement, toolData, moveFn, endFn) {
+            document.removeEventListener('mousemove', moveFn);
+            document.removeEventListener('touchmove', moveFn);
+            document.removeEventListener('mouseup', endFn);
+            document.removeEventListener('touchend', endFn);
+
+            const clone = document.getElementById('current-drag');
+            if(clone) {
+                // Obtener coordenadas finales
+                const rect = clone.getBoundingClientRect();
+                const x = rect.left + rect.width/2;
+                const y = rect.top + rect.height/2;
+                
+                clone.remove();
+                attemptDrop(x, y, toolElement, toolData);
+            }
+            state.isDragging = false;
+            // Limpiar highlights
+            document.querySelectorAll('.risk-area').forEach(el => el.classList.remove('droppable-highlight'));
+        }
+
+        // Verifica si estamos encima de un riesgo para iluminarlo
+        function checkHover(x, y) {
+            document.querySelectorAll('.risk-area').forEach(riskEl => {
+                const rect = riskEl.getBoundingClientRect();
+                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom && !riskEl.classList.contains('solved')) {
+                    riskEl.classList.add('droppable-highlight');
+                } else {
+                    riskEl.classList.remove('droppable-highlight');
+                }
+            });
+        }
+
+        function attemptDrop(x, y, toolElement, toolData) {
+            // Buscar elemento bajo el cursor/dedo
+            // Nota: usamos elementsFromPoint porque el punto puede estar sobre capas transparentes
+            const elements = document.elementsFromPoint(x, y);
+            const riskEl = elements.find(el => el.classList.contains('risk-area'));
+
+            if (riskEl && !riskEl.classList.contains('solved')) {
+                const riskId = riskEl.dataset.id;
+                const levelData = levels[state.levelIdx];
+                const riskData = levelData.risks.find(r => r.id === riskId);
+
+                if (riskData.solutionId === toolData.id) {
+                    // ¡ÉXITO!
+                    riskEl.classList.add('solved');
+                    riskEl.classList.remove('detected'); // Quitar borde rojo
+                    riskEl.innerHTML = `<div style="font-size:3rem; position:absolute; top:-10px; left:0;">✨</div>`; // Efecto visual simple
+                    
+                    toolElement.classList.add('used');
+                    state.solved.push(riskId);
+                    
+                    playSound('success');
+                    speak(toolData.feedback);
+                    showToast(toolData.feedback);
+
+                    checkLevelComplete();
+                } else {
+                    // ERROR
+                    handleError();
+                    speak("Esa herramienta no sirve aquí. Revisa tus protocolos.");
+                }
+            }
+        }
+
+        function handleError() {
+            playSound('error');
+            const hearts = Array.from(ui.stats.hearts);
+            // Buscar un corazón vivo y matarlo
+            for(let i = hearts.length - 1; i >= 0; i--) {
+                if(!hearts[i].classList.contains('lost')) {
+                    hearts[i].classList.add('lost');
+                    state.lives--;
+                    break;
+                }
+            }
+            
+            if(state.lives <= 0) {
+                showModal("MISIÓN FALLIDA", "Demasiados errores de protocolo. La zona ha sido comprometida.", () => {
+                    location.reload();
+                });
+            }
+        }
+
+        function checkLevelComplete() {
+            const totalRisks = levels[state.levelIdx].risks.length;
+            if (state.solved.length === totalRisks) {
+                setTimeout(() => {
+                    const nextBtnText = (state.levelIdx < levels.length - 1) ? "SIGUIENTE NIVEL" : "FINALIZAR ENTRENAMIENTO";
+                    document.getElementById('end-title').textContent = "¡AMENAZAS NEUTRALIZADAS!";
+                    document.getElementById('end-msg').textContent = "Has asegurado el área correctamente.";
+                    document.getElementById('btn-next').textContent = nextBtnText;
+                    switchScreen('end-screen');
+                    speak("Misión cumplida. Área segura.");
+                }, 1500);
+            }
+        }
+
+        // --- UI HELPERS ---
+        function updateStats() {
+            const total = levels[state.levelIdx].risks.length;
+            const current = state.detected.length;
+            ui.stats.riskText.textContent = `RIESGOS DETECTADOS: ${current}/${total}`;
+        }
+
+        let modalCallback = null;
+        function showModal(title, text, callback) {
+            ui.modal.title.textContent = title;
+            ui.modal.text.textContent = text;
+            ui.modal.overlay.classList.add('active');
+            modalCallback = callback;
+        }
+
+        function closeModal() {
+            ui.modal.overlay.classList.remove('active');
+            if (modalCallback) {
+                modalCallback();
+                modalCallback = null;
+            }
+        }
+
+        function showToast(text) {
+            ui.subtitle.textContent = text;
+            ui.subtitle.classList.add('visible');
+            setTimeout(() => ui.subtitle.classList.remove('visible'), 3000);
+        }
+
+        // --- AUDIO SYSTEM (Básico) ---
+        function speak(text) {
+            if(synth.speaking) synth.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'es-ES';
+            utter.rate = 1.0;
+            synth.speak(utter);
+            // También mostramos el texto en subtítulo si no es un toast
+            ui.subtitle.textContent = text;
+            ui.subtitle.classList.add('visible');
+            utter.onend = () => setTimeout(() => ui.subtitle.classList.remove('visible'), 1000);
+        }
+
+        function playSound(type) {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            if (type === 'ping') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.start(); osc.stop(ctx.currentTime + 0.3);
+            } else if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.setValueAtTime(554, ctx.currentTime + 0.1); // C#
+                osc.frequency.setValueAtTime(659, ctx.currentTime + 0.2); // E
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+                osc.start(); osc.stop(ctx.currentTime + 0.5);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+                osc.start(); osc.stop(ctx.currentTime + 0.3);
+            }
+        }
+
     </script>
 </body>
 </html>
-
-
